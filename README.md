@@ -1,6 +1,6 @@
 # PHPantom for VS Code and Cursor
 
-PHPantom is a fast PHP language server written in Rust. This extension starts `phpantom_lsp` automatically for PHP files in VS Code-compatible editors, including Cursor.
+[PHPantom](https://github.com/AJenbo/phpantom_lsp) is a fast PHP language server written in Rust. This extension starts `phpantom_lsp` automatically for PHP files in VS Code-compatible editors, including Cursor.
 
 On first activation, the extension looks for a server binary in this order:
 
@@ -73,4 +73,4 @@ To use a local binary, build PHPantom from source or download a release manually
 
 ## Security
 
-Downloaded binaries come from `AJenbo/phpantom_lsp` GitHub Releases. The extension verifies release asset size and verifies GitHub SHA-256 digests when GitHub publishes them. If upstream publishes standalone checksum files in the future, the extension should verify those checksums as well.
+Downloaded binaries come from [AJenbo/phpantom_lsp](https://github.com/AJenbo/phpantom_lsp) GitHub Releases. The extension verifies release asset size and verifies GitHub SHA-256 digests when GitHub publishes them. If upstream publishes standalone checksum files in the future, the extension should verify those checksums as well.
