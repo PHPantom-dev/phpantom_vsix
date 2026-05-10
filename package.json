@@ -2,7 +2,7 @@
     "name": "phpantom",
     "displayName": "PHPantom",
     "description": "Fast PHP language server with Laravel and PHPStan-aware type intelligence.",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "publisher": "phpantom",
     "license": "MIT",
     "icon": "assets/spookaphant.png",

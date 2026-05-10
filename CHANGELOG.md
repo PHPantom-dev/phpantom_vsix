@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1
+
+- Serialized language server lifecycle operations to prevent duplicate `phpantom_lsp` processes during overlapping startup, restart, and update checks.
+- Added a restart fallback that terminates `phpantom_lsp` if it does not exit after a graceful stop timeout.
+- Restart the server automatically when binary resolution settings such as `phpantom.serverPath` change.
+
 ## 0.2.0
 
 - Added background checks for newer PHPantom language server releases when using `phpantom.releaseTag = "latest"`.

@@ -1,3 +1,4 @@
+import { ChildProcessWithoutNullStreams } from "child_process";
 import * as vscode from "vscode";
 import { LanguageClient } from "vscode-languageclient/node";
 import { applyConfiguredTrace, startClient } from "./client";
@@ -9,9 +10,11 @@ import {
 
 let client: LanguageClient | undefined;
 let activeServerPath: string | undefined;
+let activeServerProcess: ChildProcessWithoutNullStreams | undefined;
 let outputChannel: vscode.OutputChannel;
 let updateTimer: NodeJS.Timeout | undefined;
 let updateCheckInProgress = false;
+let lifecycleQueue: Promise<void> = Promise.resolve();
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     outputChannel = vscode.window.createOutputChannel("PHPantom");
@@ -25,13 +28,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             outputChannel.show();
         }),
         vscode.commands.registerCommand("phpantom.downloadServer", async () => {
-            await runCommand("download PHPantom language server", async () => {
+            await runLifecycleCommand("download PHPantom language server", async () => {
                 const serverPath = await downloadServer(context, outputChannel, true);
                 vscode.window.showInformationMessage(`PHPantom language server downloaded to ${serverPath}.`);
             });
         }),
         vscode.commands.registerCommand("phpantom.clearDownloadedServer", async () => {
-            await runCommand("clear downloaded PHPantom language servers", async () => {
+            await runLifecycleCommand("clear downloaded PHPantom language servers", async () => {
                 await stopClient();
                 await clearDownloadedServer(context);
                 vscode.window.showInformationMessage("Downloaded PHPantom language servers were cleared.");
@@ -42,23 +45,27 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                 applyConfiguredTrace(client);
             }
 
+            const serverResolutionChanged = event.affectsConfiguration("phpantom.serverPath")
+                || event.affectsConfiguration("phpantom.releaseTag")
+                || event.affectsConfiguration("phpantom.autoDownload");
+
             if (
                 event.affectsConfiguration("phpantom.autoUpdate")
                 || event.affectsConfiguration("phpantom.updateCheckIntervalHours")
-                || event.affectsConfiguration("phpantom.releaseTag")
-                || event.affectsConfiguration("phpantom.autoDownload")
-                || event.affectsConfiguration("phpantom.serverPath")
+                || serverResolutionChanged
             ) {
                 scheduleServerUpdateChecks(context);
+            }
+
+            if (serverResolutionChanged) {
+                void restartServer(context);
             }
         })
     );
     context.subscriptions.push(new vscode.Disposable(clearUpdateTimer));
 
-    await runCommand("start PHPantom language server", async () => {
-        const started = await startClient(context, outputChannel);
-        client = started.client;
-        activeServerPath = started.serverPath;
+    await runLifecycleCommand("start PHPantom language server", async () => {
+        await startServer(context);
     });
 
     scheduleServerUpdateChecks(context);
@@ -66,17 +73,28 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
 export async function deactivate(): Promise<void> {
     clearUpdateTimer();
+    await lifecycleQueue;
     await stopClient();
 }
 
 async function restartServer(context: vscode.ExtensionContext): Promise<void> {
-    await runCommand("restart PHPantom language server", async () => {
+    await runLifecycleCommand("restart PHPantom language server", async () => {
         outputChannel.appendLine("Restarting PHPantom language server.");
         await stopClient();
-        const started = await startClient(context, outputChannel);
-        client = started.client;
-        activeServerPath = started.serverPath;
+        await startServer(context);
     });
+}
+
+async function startServer(context: vscode.ExtensionContext): Promise<void> {
+    if (client) {
+        outputChannel.appendLine(`PHPantom language server is already running: ${activeServerPath ?? "unknown path"}`);
+        return;
+    }
+
+    const started = await startClient(context, outputChannel);
+    client = started.client;
+    activeServerPath = started.serverPath;
+    activeServerProcess = started.serverProcess;
 }
 
 async function stopClient(): Promise<void> {
@@ -85,10 +103,81 @@ async function stopClient(): Promise<void> {
     }
 
     const activeClient = client;
+    const serverProcess = activeServerProcess;
     client = undefined;
     activeServerPath = undefined;
-    await activeClient.stop();
+    activeServerProcess = undefined;
+
+    try {
+        await activeClient.stop(1000);
+    } catch (error) {
+        outputChannel.appendLine(`Graceful PHPantom language server stop timed out or failed: ${formatError(error)}`);
+    }
+
+    if (serverProcess) {
+        await terminateServerProcess(serverProcess);
+    }
+
     outputChannel.appendLine("PHPantom language server stopped.");
+}
+
+async function terminateServerProcess(serverProcess: ChildProcessWithoutNullStreams): Promise<void> {
+    if (!isProcessRunning(serverProcess)) {
+        return;
+    }
+
+    if (await waitForProcessExit(serverProcess, 1000)) {
+        return;
+    }
+
+    outputChannel.appendLine("PHPantom language server did not exit after 1000ms; terminating process.");
+    serverProcess.kill("SIGTERM");
+
+    if (await waitForProcessExit(serverProcess, 500)) {
+        return;
+    }
+
+    if (process.platform !== "win32") {
+        outputChannel.appendLine("PHPantom language server ignored SIGTERM; forcing SIGKILL.");
+        serverProcess.kill("SIGKILL");
+        await waitForProcessExit(serverProcess, 500);
+    }
+}
+
+function isProcessRunning(serverProcess: ChildProcessWithoutNullStreams): boolean {
+    if (serverProcess.exitCode !== null || serverProcess.signalCode !== null || !serverProcess.pid) {
+        return false;
+    }
+
+    try {
+        process.kill(serverProcess.pid, 0);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+function waitForProcessExit(
+    serverProcess: ChildProcessWithoutNullStreams,
+    timeoutMs: number
+): Promise<boolean> {
+    if (!isProcessRunning(serverProcess)) {
+        return Promise.resolve(true);
+    }
+
+    return new Promise((resolve) => {
+        const timer = setTimeout(() => {
+            serverProcess.off("exit", onExit);
+            resolve(false);
+        }, timeoutMs);
+
+        const onExit = () => {
+            clearTimeout(timer);
+            resolve(true);
+        };
+
+        serverProcess.once("exit", onExit);
+    });
 }
 
 function scheduleServerUpdateChecks(context: vscode.ExtensionContext): void {
@@ -195,6 +284,15 @@ async function runCommand(description: string, task: () => Promise<void>): Promi
         outputChannel.appendLine("Set phpantom.serverPath to a local phpantom_lsp binary, install phpantom_lsp on PATH, or enable phpantom.autoDownload.");
         vscode.window.showErrorMessage(`PHPantom failed to ${description}: ${message}`);
     }
+}
+
+function runLifecycleCommand(description: string, task: () => Promise<void>): Promise<void> {
+    const run = lifecycleQueue.then(
+        () => runCommand(description, task),
+        () => runCommand(description, task)
+    );
+    lifecycleQueue = run.catch(() => undefined);
+    return run;
 }
 
 function formatError(error: unknown): string {
