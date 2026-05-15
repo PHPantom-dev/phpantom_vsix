@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1 - 2026-05-15
+
+- Added PHP outline augmentation so named functions and methods can appear in Sticky Scroll.
+
 ## 0.3.0
 
 - Added a PHPantom status bar item for server state and output-channel access.

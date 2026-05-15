@@ -7,6 +7,7 @@ import {
     Trace
 } from "vscode-languageclient/node";
 import { resolveServerBinary } from "./downloader";
+import { augmentPhpDocumentSymbols } from "./phpSymbols";
 
 export interface StartedClient {
     client: LanguageClient;
@@ -55,6 +56,12 @@ export async function startClient(
         traceOutputChannel: outputChannel,
         synchronize: {
             configurationSection: "phpantom"
+        },
+        middleware: {
+            async provideDocumentSymbols(document, token, next) {
+                const symbols = await next(document, token);
+                return augmentPhpDocumentSymbols(document, symbols);
+            }
         }
     };
 
