@@ -11,7 +11,7 @@ import * as tar from "tar";
 import * as vscode from "vscode";
 import { getPlatformInfo, PlatformInfo } from "./platform";
 
-const repository = "AJenbo/phpantom_lsp";
+const repository = "PHPantom-dev/phpantom_lsp";
 const apiBaseUrl = `https://api.github.com/repos/${repository}/releases`;
 const userAgent = "phpantom-vscode-extension";
 const latestMarkerFile = "latest.json";

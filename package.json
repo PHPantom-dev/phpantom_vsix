@@ -2,37 +2,54 @@
     "name": "phpantom",
     "displayName": "PHPantom",
     "description": "Fast PHP language server with Laravel and PHPStan-aware type intelligence.",
-    "version": "0.3.1",
-    "publisher": "CicerBro",
+    "version": "0.4.0",
+    "publisher": "phpantom",
     "license": "MIT",
     "icon": "assets/spookaphant.png",
+    "preview": true,
+    "galleryBanner": {
+        "color": "#1a1a2e",
+        "theme": "dark"
+    },
     "repository": {
         "type": "git",
-        "url": "https://github.com/CicerBro/phpantom_vsix.git"
+        "url": "https://github.com/PHPantom-dev/phpantom_lsp.git",
+        "directory": "vscode-phpantom"
     },
     "bugs": {
-        "url": "https://github.com/CicerBro/phpantom_vsix/issues"
+        "url": "https://github.com/PHPantom-dev/phpantom_lsp/issues"
     },
-    "homepage": "https://github.com/CicerBro/phpantom_vsix#readme",
+    "homepage": "https://github.com/PHPantom-dev/phpantom_lsp#readme",
     "engines": {
         "vscode": "^1.88.0"
     },
     "categories": [
-        "Programming Languages"
+        "Programming Languages",
+        "Linters",
+        "Formatters"
     ],
     "keywords": [
         "php",
-        "phpantom",
-        "lsp",
-        "language server",
         "laravel",
-        "phpstan"
+        "drupal",
+        "lsp",
+        "phpstan",
+        "intellisense"
     ],
     "activationEvents": [
         "onLanguage:php"
     ],
     "main": "./dist/extension.js",
+    "extensionKind": [
+        "workspace"
+    ],
     "contributes": {
+        "languages": [
+            {
+                "id": "php",
+                "aliases": ["PHP"]
+            }
+        ],
         "commands": [
             {
                 "command": "phpantom.restartServer",
