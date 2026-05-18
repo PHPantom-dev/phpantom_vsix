@@ -4,8 +4,6 @@ PHP language support for Visual Studio Code powered by [PHPantom](https://github
 
 ## Features
 
-![PHPantom showing hover and completion on a Laravel query](https://raw.githubusercontent.com/PHPantom-dev/vscode-phpantom/main/assets/hover-compleation.png)
-
 - **Code completion.** Type-aware suggestions for symbols, keywords, and members with automatic use declaration insertion.
 - **Signature help.** Parameter hints for constructors, methods, and functions.
 - **Navigation.** Go to definition, type definition, implementation, find all references, and rename.
@@ -19,6 +17,8 @@ PHP language support for Visual Studio Code powered by [PHPantom](https://github
 - **Code folding and smart selection.**
 - **Document links** for include/require paths.
 - **Deep type intelligence.** Generics (`@template`), PHPStan/Psalm annotations, and framework-aware analysis including Laravel Eloquent.
+
+![PHPantom showing hover and completion on a Laravel query](https://raw.githubusercontent.com/PHPantom-dev/phpantom_vsix/master/assets/hover-compleation.png)
 
 ## Quick Start
 

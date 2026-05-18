@@ -13,13 +13,12 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/PHPantom-dev/phpantom_lsp.git",
-        "directory": "vscode-phpantom"
+        "url": "https://github.com/PHPantom-dev/phpantom_vsix.git"
     },
     "bugs": {
-        "url": "https://github.com/PHPantom-dev/phpantom_lsp/issues"
+        "url": "https://github.com/PHPantom-dev/phpantom_vsix/issues"
     },
-    "homepage": "https://github.com/PHPantom-dev/phpantom_lsp#readme",
+    "homepage": "https://github.com/PHPantom-dev/phpantom_vsix#readme",
     "engines": {
         "vscode": "^1.88.0"
     },
