@@ -1,31 +1,45 @@
 import { ChildProcessWithoutNullStreams, spawn } from "child_process";
 import * as vscode from "vscode";
 import {
+    DocumentSelector,
     LanguageClient,
     LanguageClientOptions,
     ServerOptions,
     Trace
 } from "vscode-languageclient/node";
-import { resolveServerBinary } from "./downloader";
 import { augmentPhpDocumentSymbols } from "./phpSymbols";
 
 export interface StartedClient {
     client: LanguageClient;
-    serverPath: string;
     serverProcess: ChildProcessWithoutNullStreams;
+    folder: vscode.WorkspaceFolder | undefined;
 }
 
+/**
+ * Start a PHPantom language server scoped to a single workspace folder.
+ *
+ * Each folder gets its own server process rooted in that folder, mirroring
+ * how the Zed extension launches one server per worktree. This keeps
+ * multi-root workspaces correct: a file opened from the second project is
+ * resolved against the second project's index rather than the first folder's.
+ *
+ * When `folder` is undefined the client handles loose documents that do not
+ * belong to any workspace folder (untitled buffers, and on-disk files when no
+ * workspace folder is open at all). The server is spawned without a working
+ * directory. Pass `matchOnDiskFiles` to also claim `file` documents; this is
+ * only safe when there are no per-folder clients to conflict with.
+ */
 export async function startClient(
-    context: vscode.ExtensionContext,
-    outputChannel: vscode.OutputChannel
+    serverPath: string,
+    folder: vscode.WorkspaceFolder | undefined,
+    outputChannel: vscode.OutputChannel,
+    matchOnDiskFiles = false
 ): Promise<StartedClient> {
-    const serverPath = await resolveServerBinary(context, outputChannel);
-    const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     let serverProcess: ChildProcessWithoutNullStreams | undefined;
 
     const serverOptions: ServerOptions = async () => {
         const spawned = spawn(serverPath, [], {
-            cwd: workspaceFolder,
+            cwd: folder?.uri.fsPath,
             stdio: "pipe",
             windowsHide: true
         });
@@ -45,13 +59,28 @@ export async function startClient(
         };
     };
 
+    // Scope the per-folder client to documents inside that folder so each
+    // server only receives the files it owns. The folderless client only
+    // claims untitled buffers, leaving on-disk files to their folder client.
+    const documentSelector: DocumentSelector = folder
+        ? [
+              {
+                  scheme: "file",
+                  language: "php",
+                  // Forward slashes so the glob matches on Windows too.
+                  pattern: `${folder.uri.fsPath.replace(/\\/g, "/")}/**/*`
+              }
+          ]
+        : matchOnDiskFiles
+          ? [
+                { scheme: "untitled", language: "php" },
+                { scheme: "file", language: "php" }
+            ]
+          : [{ scheme: "untitled", language: "php" }];
+
     const clientOptions: LanguageClientOptions = {
-        documentSelector: [
-            {
-                scheme: "file",
-                language: "php"
-            }
-        ],
+        documentSelector,
+        workspaceFolder: folder,
         outputChannel,
         traceOutputChannel: outputChannel,
         synchronize: {
@@ -81,8 +110,8 @@ export async function startClient(
 
     return {
         client,
-        serverPath,
-        serverProcess
+        serverProcess,
+        folder
     };
 }
 

@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-06-03
+
+### Fixed
+
+- Multi-root workspaces now run a separate language server per workspace folder, so files in the second and later folders get correct completion, diagnostics, and navigation instead of being resolved against the first folder's project.
+
 ### Changed
 
 - Extension is now published under the official PHPantom publisher.

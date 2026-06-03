@@ -1,22 +1,33 @@
-import { ChildProcessWithoutNullStreams, execFile } from "child_process";
+import { execFile } from "child_process";
 import * as path from "path";
 import * as vscode from "vscode";
-import { LanguageClient } from "vscode-languageclient/node";
-import { applyConfiguredTrace, startClient } from "./client";
+import { applyConfiguredTrace, startClient, StartedClient } from "./client";
 import {
     checkForServerUpdate,
-    clearDownloadedServer
+    clearDownloadedServer,
+    resolveServerBinary
 } from "./downloader";
 
-let client: LanguageClient | undefined;
-let activeServerPath: string | undefined;
-let activeServerProcess: ChildProcessWithoutNullStreams | undefined;
+// One language server is launched per (outermost) workspace folder, keyed by
+// the folder URI. A folderless client handles untitled buffers. This mirrors
+// the Zed extension, which runs one server per worktree, and keeps multi-root
+// workspaces correct: each project is indexed by its own server.
+const clients = new Map<string, StartedClient>();
+let defaultClient: StartedClient | undefined;
+
+// The phpantom_lsp binary is shared by every per-folder server. It is resolved
+// (and downloaded if needed) once; subsequent folders reuse the same path.
+let serverPathPromise: Promise<string> | undefined;
+let resolvedServerPath: string | undefined;
+
 let outputChannel: vscode.OutputChannel;
 let statusBarItem: vscode.StatusBarItem;
 let updateTimer: NodeJS.Timeout | undefined;
 let updateCheckInProgress = false;
 let lifecycleQueue: Promise<void> = Promise.resolve();
 let pendingUpdateServerPath: string | undefined;
+
+let _sortedWorkspaceFolders: string[] | undefined;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     outputChannel = vscode.window.createOutputChannel("PHPantom");
@@ -29,7 +40,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
     context.subscriptions.push(
         vscode.commands.registerCommand("phpantom.restartServer", async () => {
-            await restartServer(context);
+            await restartServers(context);
         }),
         vscode.commands.registerCommand("phpantom.showOutput", () => {
             outputChannel.show();
@@ -45,14 +56,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         }),
         vscode.commands.registerCommand("phpantom.clearDownloadedServer", async () => {
             await runLifecycleCommand("clear downloaded PHPantom language servers", async () => {
-                await stopClient();
+                await stopAllClients();
+                resetServerPathCache();
                 await clearDownloadedServer(context);
                 vscode.window.showInformationMessage("Downloaded PHPantom language servers were cleared.");
             });
         }),
         vscode.workspace.onDidChangeConfiguration((event) => {
-            if (event.affectsConfiguration("phpantom.trace.server") && client) {
-                applyConfiguredTrace(client);
+            if (event.affectsConfiguration("phpantom.trace.server")) {
+                for (const started of allStartedClients()) {
+                    applyConfiguredTrace(started.client);
+                }
             }
 
             const changedServerSettings = getChangedServerSettings(event);
@@ -70,15 +84,45 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                 const message = `PHPantom language server restarting because ${changedServerSettings.join(", ")} changed.`;
                 outputChannel.appendLine(message);
                 vscode.window.showInformationMessage(message);
-                void restartServer(context);
+                void restartServers(context);
             }
         })
     );
     context.subscriptions.push(new vscode.Disposable(clearUpdateTimer));
 
-    await runLifecycleCommand("start PHPantom language server", async () => {
-        await startServer(context);
-    });
+    // Start a server for every folder that already has an open PHP document,
+    // and for any opened later. Folders without an open PHP file stay dormant
+    // until one is opened, matching VS Code's lazy multi-root activation.
+    context.subscriptions.push(
+        vscode.workspace.onDidOpenTextDocument((document) => {
+            void runLifecycleCommand("start PHPantom language server", () =>
+                ensureClientForDocument(context, document)
+            );
+        }),
+        vscode.workspace.onDidChangeWorkspaceFolders((event) => {
+            _sortedWorkspaceFolders = undefined;
+            void runLifecycleCommand("update PHPantom language servers", async () => {
+                for (const folder of event.removed) {
+                    await stopFolderClient(folder);
+                }
+                // The folderless client's document selector is fixed at
+                // creation. If folder presence changed it may now match the
+                // wrong set (e.g. a broad client that would clash with new
+                // per-folder clients), so rebuild it from scratch.
+                if (defaultClient) {
+                    const stale = defaultClient;
+                    defaultClient = undefined;
+                    await stopStartedClient(stale);
+                }
+                // Folders added to the workspace may already own open documents.
+                await startClientsForOpenDocuments(context);
+            });
+        })
+    );
+
+    await runLifecycleCommand("start PHPantom language server", () =>
+        startClientsForOpenDocuments(context)
+    );
 
     scheduleServerUpdateChecks(context);
 }
@@ -86,86 +130,239 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 export async function deactivate(): Promise<void> {
     clearUpdateTimer();
     await lifecycleQueue;
-    await stopClient();
+    await stopAllClients();
 }
 
-async function restartServer(context: vscode.ExtensionContext): Promise<void> {
-    await runLifecycleCommand("restart PHPantom language server", async () => {
-        outputChannel.appendLine("Restarting PHPantom language server.");
-        await stopClient();
-        await startServer(context);
-    });
+function allStartedClients(): StartedClient[] {
+    const all = [...clients.values()];
+    if (defaultClient) {
+        all.push(defaultClient);
+    }
+    return all;
 }
 
-async function startServer(context: vscode.ExtensionContext): Promise<void> {
-    if (client) {
-        outputChannel.appendLine(`PHPantom language server is already running: ${activeServerPath ?? "unknown path"}`);
-        setReadyStatus(context);
+function hasRunningClient(): boolean {
+    return clients.size > 0 || defaultClient !== undefined;
+}
+
+// ── Workspace folder helpers ────────────────────────────────────────────────
+//
+// Nested workspace folders share a single server rooted at the outermost
+// folder, so a file in a sub-folder is not indexed twice.
+
+function sortedWorkspaceFolders(): string[] {
+    if (_sortedWorkspaceFolders === undefined) {
+        _sortedWorkspaceFolders = (vscode.workspace.workspaceFolders ?? [])
+            .map((folder) => {
+                let result = folder.uri.toString();
+                if (!result.endsWith("/")) {
+                    result = result + "/";
+                }
+                return result;
+            })
+            .sort((a, b) => a.length - b.length);
+    }
+    return _sortedWorkspaceFolders;
+}
+
+function getOuterMostWorkspaceFolder(folder: vscode.WorkspaceFolder): vscode.WorkspaceFolder {
+    for (const element of sortedWorkspaceFolders()) {
+        let uri = folder.uri.toString();
+        if (!uri.endsWith("/")) {
+            uri = uri + "/";
+        }
+        if (uri.startsWith(element)) {
+            return vscode.workspace.getWorkspaceFolder(vscode.Uri.parse(element)) ?? folder;
+        }
+    }
+    return folder;
+}
+
+// ── Server binary resolution (shared across folders) ─────────────────────────
+
+function resolveSharedServerPath(context: vscode.ExtensionContext): Promise<string> {
+    if (!serverPathPromise) {
+        serverPathPromise = resolveServerBinary(context, outputChannel)
+            .then((serverPath) => {
+                resolvedServerPath = serverPath;
+                return serverPath;
+            })
+            .catch((error) => {
+                // Allow a later folder (or retry) to attempt resolution again.
+                serverPathPromise = undefined;
+                throw error;
+            });
+    }
+    return serverPathPromise;
+}
+
+function resetServerPathCache(): void {
+    serverPathPromise = undefined;
+    resolvedServerPath = undefined;
+}
+
+// ── Client lifecycle (internal, not queued) ──────────────────────────────────
+
+async function startClientsForOpenDocuments(context: vscode.ExtensionContext): Promise<void> {
+    for (const document of vscode.workspace.textDocuments) {
+        await ensureClientForDocument(context, document);
+    }
+    setReadyStatus(context);
+}
+
+async function ensureClientForDocument(
+    context: vscode.ExtensionContext,
+    document: vscode.TextDocument
+): Promise<void> {
+    if (document.languageId !== "php") {
         return;
     }
 
-    setStatus("starting", "PHPantom language server is starting.");
-    const started = await startClient(context, outputChannel);
-    client = started.client;
-    activeServerPath = started.serverPath;
-    activeServerProcess = started.serverProcess;
-    if (pendingUpdateServerPath === activeServerPath) {
-        pendingUpdateServerPath = undefined;
+    const uri = document.uri;
+
+    if (uri.scheme === "untitled") {
+        if (!defaultClient) {
+            await startFolderClient(context, undefined);
+        }
+        return;
     }
-    setReadyStatus(context);
-    logStartupSummary(context);
+
+    if (uri.scheme !== "file") {
+        return;
+    }
+
+    const owningFolder = vscode.workspace.getWorkspaceFolder(uri);
+    if (!owningFolder) {
+        // A file outside every workspace folder. When no folder is open at all
+        // (the user opened a single file), the folderless client handles it so
+        // basic language features keep working. When folders exist, the server
+        // is root-oriented and there is no project to index it against, so it
+        // is left unhandled rather than indexed against the wrong project.
+        if (!hasWorkspaceFolders() && !defaultClient) {
+            await startFolderClient(context, undefined);
+        }
+        return;
+    }
+
+    const folder = getOuterMostWorkspaceFolder(owningFolder);
+    if (clients.has(folder.uri.toString())) {
+        return;
+    }
+
+    await startFolderClient(context, folder);
 }
 
-async function stopClient(): Promise<void> {
-    if (!client) {
+function hasWorkspaceFolders(): boolean {
+    return (vscode.workspace.workspaceFolders?.length ?? 0) > 0;
+}
+
+async function startFolderClient(
+    context: vscode.ExtensionContext,
+    folder: vscode.WorkspaceFolder | undefined
+): Promise<void> {
+    const label = folder ? folder.name : "untitled files";
+    setStatus("starting", `PHPantom language server is starting for ${label}.`);
+
+    const serverPath = await resolveSharedServerPath(context);
+    // Only the folderless client, and only when no workspace folder is open,
+    // may claim on-disk files; otherwise it would double up with per-folder
+    // clients and produce duplicate results.
+    const matchOnDiskFiles = !folder && !hasWorkspaceFolders();
+    const started = await startClient(serverPath, folder, outputChannel, matchOnDiskFiles);
+
+    if (folder) {
+        clients.set(folder.uri.toString(), started);
+    } else {
+        defaultClient = started;
+    }
+
+    if (pendingUpdateServerPath === serverPath) {
+        pendingUpdateServerPath = undefined;
+    }
+
+    setReadyStatus(context);
+    logStartupSummary(context, folder);
+}
+
+async function stopAllClients(): Promise<void> {
+    if (!hasRunningClient()) {
         return;
     }
 
     setStatus("stopping", "PHPantom language server is stopping.");
-    const activeClient = client;
-    const serverProcess = activeServerProcess;
-    client = undefined;
-    activeServerPath = undefined;
-    activeServerProcess = undefined;
 
+    const all = allStartedClients();
+    clients.clear();
+    defaultClient = undefined;
+
+    for (const started of all) {
+        await stopStartedClient(started);
+    }
+
+    outputChannel.appendLine("PHPantom language servers stopped.");
+    setStatus("stopped", "PHPantom language server is stopped.");
+}
+
+async function stopFolderClient(folder: vscode.WorkspaceFolder): Promise<void> {
+    const key = folder.uri.toString();
+    const started = clients.get(key);
+    if (!started) {
+        return;
+    }
+
+    clients.delete(key);
+    await stopStartedClient(started);
+    outputChannel.appendLine(`PHPantom language server for ${folder.name} stopped.`);
+}
+
+async function stopStartedClient(started: StartedClient): Promise<void> {
     try {
-        await activeClient.stop(1000);
+        await started.client.stop(1000);
     } catch (error) {
         outputChannel.appendLine(`Graceful PHPantom language server stop timed out or failed: ${formatError(error)}`);
     }
 
-    if (serverProcess) {
-        await terminateServerProcess(serverProcess);
-    }
-
-    outputChannel.appendLine("PHPantom language server stopped.");
-    setStatus("stopped", "PHPantom language server is stopped.");
+    await terminateServerProcess(started);
 }
 
-async function terminateServerProcess(serverProcess: ChildProcessWithoutNullStreams): Promise<void> {
-    if (!isProcessRunning(serverProcess)) {
+// ── Queued lifecycle commands ────────────────────────────────────────────────
+
+async function restartServers(context: vscode.ExtensionContext): Promise<void> {
+    await runLifecycleCommand("restart PHPantom language server", async () => {
+        outputChannel.appendLine("Restarting PHPantom language servers.");
+        await stopAllClients();
+        // Re-resolve the binary so a pending update is picked up on restart.
+        resetServerPathCache();
+        await startClientsForOpenDocuments(context);
+    });
+}
+
+async function terminateServerProcess(started: StartedClient): Promise<void> {
+    const serverProcess = started.serverProcess;
+    if (!isProcessRunning(started)) {
         return;
     }
 
-    if (await waitForProcessExit(serverProcess, 1000)) {
+    if (await waitForProcessExit(started, 1000)) {
         return;
     }
 
     outputChannel.appendLine("PHPantom language server did not exit after 1000ms; terminating process.");
     serverProcess.kill("SIGTERM");
 
-    if (await waitForProcessExit(serverProcess, 500)) {
+    if (await waitForProcessExit(started, 500)) {
         return;
     }
 
     if (process.platform !== "win32") {
         outputChannel.appendLine("PHPantom language server ignored SIGTERM; forcing SIGKILL.");
         serverProcess.kill("SIGKILL");
-        await waitForProcessExit(serverProcess, 500);
+        await waitForProcessExit(started, 500);
     }
 }
 
-function isProcessRunning(serverProcess: ChildProcessWithoutNullStreams): boolean {
+function isProcessRunning(started: StartedClient): boolean {
+    const serverProcess = started.serverProcess;
     if (serverProcess.exitCode !== null || serverProcess.signalCode !== null || !serverProcess.pid) {
         return false;
     }
@@ -178,14 +375,12 @@ function isProcessRunning(serverProcess: ChildProcessWithoutNullStreams): boolea
     }
 }
 
-function waitForProcessExit(
-    serverProcess: ChildProcessWithoutNullStreams,
-    timeoutMs: number
-): Promise<boolean> {
-    if (!isProcessRunning(serverProcess)) {
+function waitForProcessExit(started: StartedClient, timeoutMs: number): Promise<boolean> {
+    if (!isProcessRunning(started)) {
         return Promise.resolve(true);
     }
 
+    const serverProcess = started.serverProcess;
     return new Promise((resolve) => {
         const timer = setTimeout(() => {
             serverProcess.off("exit", onExit);
@@ -276,7 +471,7 @@ async function handleUpdateResult(
         return;
     }
 
-    if (activeServerPath === result.serverPath) {
+    if (resolvedServerPath === result.serverPath) {
         if (manual) {
             vscode.window.showInformationMessage(`PHPantom language server is current (${result.releaseTag}).`);
         }
@@ -299,7 +494,7 @@ async function handleUpdateResult(
     );
 
     if (choice === "Restart Now") {
-        await restartServer(context);
+        await restartServers(context);
         return;
     }
 
@@ -308,18 +503,19 @@ async function handleUpdateResult(
 
 async function showServerVersion(context: vscode.ExtensionContext): Promise<void> {
     await runCommand("show PHPantom language server version", async () => {
-        if (!activeServerPath) {
+        if (!resolvedServerPath) {
             throw new Error("PHPantom language server is not running.");
         }
 
-        const version = await getServerVersion(activeServerPath);
-        const source = describeServerSource(context, activeServerPath);
+        const version = await getServerVersion(resolvedServerPath);
+        const source = describeServerSource(context, resolvedServerPath);
         const details = [
             "",
             "PHPantom language server",
             `Version: ${version}`,
             `Source: ${source}`,
-            `Path: ${activeServerPath}`
+            `Path: ${resolvedServerPath}`,
+            `Running servers: ${describeRunningServers()}`
         ].join("\n");
 
         outputChannel.appendLine(details);
@@ -333,6 +529,16 @@ async function showServerVersion(context: vscode.ExtensionContext): Promise<void
             outputChannel.show();
         }
     });
+}
+
+function describeRunningServers(): string {
+    const names = [...clients.values()]
+        .map((started) => started.folder?.name)
+        .filter((name): name is string => Boolean(name));
+    if (defaultClient) {
+        names.push("untitled files");
+    }
+    return names.length > 0 ? names.join(", ") : "none";
 }
 
 function getServerVersion(binaryPath: string): Promise<string> {
@@ -349,16 +555,19 @@ function getServerVersion(binaryPath: string): Promise<string> {
     });
 }
 
-function logStartupSummary(context: vscode.ExtensionContext): void {
-    const workspace = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? "(no workspace)";
-    const source = describeServerSource(context, activeServerPath);
+function logStartupSummary(
+    context: vscode.ExtensionContext,
+    folder: vscode.WorkspaceFolder | undefined
+): void {
+    const workspace = folder?.uri.fsPath ?? "(untitled files)";
+    const source = describeServerSource(context, resolvedServerPath);
 
     outputChannel.appendLine("");
     outputChannel.appendLine("PHPantom startup");
     outputChannel.appendLine(`Extension version: ${getExtensionVersion(context)}`);
-    outputChannel.appendLine(`Workspace: ${workspace}`);
+    outputChannel.appendLine(`Workspace folder: ${workspace}`);
     outputChannel.appendLine(`Server source: ${source}`);
-    outputChannel.appendLine(`Server path: ${activeServerPath ?? "(not running)"}`);
+    outputChannel.appendLine(`Server path: ${resolvedServerPath ?? "(not running)"}`);
     outputChannel.appendLine(`Auto update: ${getAutoUpdateSummary(source)}`);
     outputChannel.appendLine("");
 }
@@ -428,19 +637,19 @@ function getAutoUpdateSummary(serverSource: string): string {
 }
 
 function setReadyStatus(context: vscode.ExtensionContext): void {
-    if (!activeServerPath) {
+    if (!hasRunningClient()) {
         setStatus("stopped", "PHPantom language server is stopped.");
         return;
     }
 
-    if (pendingUpdateServerPath && pendingUpdateServerPath !== activeServerPath) {
+    if (pendingUpdateServerPath && pendingUpdateServerPath !== resolvedServerPath) {
         setStatus("updateReady", `PHPantom update is ready. Restart to use ${pendingUpdateServerPath}.`);
         return;
     }
 
     setStatus(
         "ready",
-        `PHPantom language server is running.\nSource: ${describeServerSource(context, activeServerPath)}\nPath: ${activeServerPath}`
+        `PHPantom language server is running.\nSource: ${describeServerSource(context, resolvedServerPath)}\nPath: ${resolvedServerPath}\nServers: ${describeRunningServers()}`
     );
 }
 
