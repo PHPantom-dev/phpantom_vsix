@@ -62,21 +62,23 @@ export async function startClient(
     // Scope the per-folder client to documents inside that folder so each
     // server only receives the files it owns. The folderless client only
     // claims untitled buffers, leaving on-disk files to their folder client.
-    const documentSelector: DocumentSelector = folder
-        ? [
-              {
-                  scheme: "file",
-                  language: "php",
-                  // Forward slashes so the glob matches on Windows too.
-                  pattern: `${folder.uri.fsPath.replace(/\\/g, "/")}/**/*`
-              }
-          ]
-        : matchOnDiskFiles
-          ? [
-                { scheme: "untitled", language: "php" },
-                { scheme: "file", language: "php" }
-            ]
-          : [{ scheme: "untitled", language: "php" }];
+    let documentSelector: DocumentSelector;
+    if (folder) {
+        // Forward slashes so the glob matches on Windows too.
+        const pattern = `${folder.uri.fsPath.replace(/\\/g, "/")}/**/*`;
+        documentSelector = [
+            { scheme: "file", language: "php", pattern },
+            { scheme: "file", language: "blade", pattern }
+        ];
+    } else if (matchOnDiskFiles) {
+        documentSelector = [
+            { scheme: "untitled", language: "php" },
+            { scheme: "file", language: "php" },
+            { scheme: "file", language: "blade" }
+        ];
+    } else {
+        documentSelector = [{ scheme: "untitled", language: "php" }];
+    }
 
     const clientOptions: LanguageClientOptions = {
         documentSelector,

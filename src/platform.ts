@@ -3,7 +3,8 @@ export type PlatformKey =
     | "darwin-x64"
     | "linux-arm64"
     | "linux-x64"
-    | "win32-x64";
+    | "win32-x64"
+    | "win32-arm64";
 
 export interface PlatformInfo {
     platformKey: PlatformKey;
@@ -49,6 +50,12 @@ const mappings: Record<string, PlatformMapping> = {
         targetTriple: "x86_64-pc-windows-msvc",
         archiveExtension: "zip",
         binaryName: "phpantom_lsp.exe"
+    },
+    "win32-arm64": {
+        platformKey: "win32-arm64",
+        targetTriple: "aarch64-pc-windows-msvc",
+        archiveExtension: "zip",
+        binaryName: "phpantom_lsp.exe"
     }
 };
 
@@ -58,7 +65,7 @@ export function getPlatformInfo(): PlatformInfo {
 
     if (!mapping) {
         throw new Error(
-            `Unsupported platform ${lookupKey}. PHPantom publishes binaries for darwin-arm64, darwin-x64, linux-arm64, linux-x64, and win32-x64. You can build phpantom_lsp from source and set phpantom.serverPath manually.`
+            `Unsupported platform ${lookupKey}. PHPantom publishes binaries for darwin-arm64, darwin-x64, linux-arm64, linux-x64, win32-x64, and win32-arm64. You can build phpantom_lsp from source and set phpantom.serverPath manually.`
         );
     }
 

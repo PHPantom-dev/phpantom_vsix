@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [0.5.0] - 2026-06-03
 
+### Added
+
+- Blade templates (`.blade.php`) are recognised as their own language with syntax highlighting, `{{-- --}}` comment toggling, and PHPantom completion, diagnostics, and navigation. The markup is treated as an embedded document, so VS Code's built-in HTML tag/attribute completion, Emmet, and `<style>`/`<script>` handling stay active alongside PHPantom inside Blade files.
+- Docblock comment continuation on Enter and outdent after single-line control-flow statements.
+- Support for Windows on ARM64
+
 ### Fixed
 
 - Multi-root workspaces now run a separate language server per workspace folder, so files in the second and later folders get correct completion, diagnostics, and navigation instead of being resolved against the first folder's project.

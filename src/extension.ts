@@ -38,6 +38,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     context.subscriptions.push(statusBarItem);
     setStatus("starting", "PHPantom language server is starting.");
 
+    registerPhpLanguageConfiguration(context);
+
     context.subscriptions.push(
         vscode.commands.registerCommand("phpantom.restartServer", async () => {
             await restartServers(context);
@@ -133,6 +135,52 @@ export async function deactivate(): Promise<void> {
     await stopAllClients();
 }
 
+// PHP editor behaviour that is purely client-side (no language server
+// involvement): continue docblock/`*` comment lines on Enter and outdent after
+// a single-line control-flow statement. VS Code's built-in PHP grammar covers
+// the basics; these rules match what users expect from a dedicated PHP
+// extension.
+function registerPhpLanguageConfiguration(context: vscode.ExtensionContext): void {
+    const disposable = vscode.languages.setLanguageConfiguration("php", {
+        onEnterRules: [
+            {
+                // e.g. /** | */
+                beforeText: /^\s*\/\*\*(?!\/)([^*]|\*(?!\/))*$/,
+                afterText: /^\s*\*\/$/,
+                action: { indentAction: vscode.IndentAction.IndentOutdent, appendText: " * " }
+            },
+            {
+                // e.g. /** ...|
+                beforeText: /^\s*\/\*\*(?!\/)([^*]|\*(?!\/))*$/,
+                action: { indentAction: vscode.IndentAction.None, appendText: " * " }
+            },
+            {
+                // e.g.  * ...|
+                beforeText: /^(\t|( ))* \*( ([^*]|\*(?!\/))*)?$/,
+                action: { indentAction: vscode.IndentAction.None, appendText: "* " }
+            },
+            {
+                // e.g.  */|
+                beforeText: /^(\t|( ))* \*\/\s*$/,
+                action: { indentAction: vscode.IndentAction.None, removeText: 1 }
+            },
+            {
+                // e.g.  *-----*/|
+                beforeText: /^(\t|( ))* \*[^/]*\*\/\s*$/,
+                action: { indentAction: vscode.IndentAction.None, removeText: 1 }
+            },
+            {
+                // Decrease indentation after a single-line if/else if/else,
+                // for, foreach, or while that has no braces.
+                previousLineText: /^\s*(((else ?)?if|for(each)?|while)\s*\(.*\)\s*|else\s*)$/,
+                beforeText: /^\s+([^{i\s]|i(?!f\b))/,
+                action: { indentAction: vscode.IndentAction.Outdent }
+            }
+        ]
+    });
+    context.subscriptions.push(disposable);
+}
+
 function allStartedClients(): StartedClient[] {
     const all = [...clients.values()];
     if (defaultClient) {
@@ -214,7 +262,7 @@ async function ensureClientForDocument(
     context: vscode.ExtensionContext,
     document: vscode.TextDocument
 ): Promise<void> {
-    if (document.languageId !== "php") {
+    if (document.languageId !== "php" && document.languageId !== "blade") {
         return;
     }
 

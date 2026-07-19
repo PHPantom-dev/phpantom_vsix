@@ -35,7 +35,8 @@
         "intellisense"
     ],
     "activationEvents": [
-        "onLanguage:php"
+        "onLanguage:php",
+        "onLanguage:blade"
     ],
     "main": "./dist/extension.js",
     "extensionKind": [
@@ -46,6 +47,29 @@
             {
                 "id": "php",
                 "aliases": ["PHP"]
+            },
+            {
+                "id": "blade",
+                "aliases": ["Blade", "blade"],
+                "extensions": [".blade.php"],
+                "configuration": "./languages/blade-language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "blade",
+                "scopeName": "text.html.php.blade",
+                "path": "./syntaxes/blade.tmLanguage.json",
+                "embeddedLanguages": {
+                    "text.html": "html",
+                    "text.html.basic": "html",
+                    "source.php": "php",
+                    "meta.embedded.block.php": "php",
+                    "meta.embedded.line.php": "php",
+                    "source.js": "javascript",
+                    "source.js.embedded.html": "javascript",
+                    "source.css": "css"
+                }
             }
         ],
         "commands": [

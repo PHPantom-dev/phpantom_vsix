@@ -17,6 +17,7 @@ PHP language support for Visual Studio Code powered by [PHPantom](https://github
 - **Code folding and smart selection.**
 - **Document links** for include/require paths.
 - **Deep type intelligence.** Generics (`@template`), PHPStan/Psalm annotations, and framework-aware analysis including Laravel Eloquent.
+- **Blade templates.** Completion, diagnostics, and navigation in `.blade.php` files, with VS Code's native HTML completion and Emmet still active in the markup.
 
 ![PHPantom showing hover and completion on a Laravel query](https://raw.githubusercontent.com/PHPantom-dev/phpantom_vsix/master/assets/hover-compleation.png)
 
