@@ -7,6 +7,7 @@ import {
     clearDownloadedServer,
     resolveServerBinary
 } from "./downloader";
+import { LogViewer } from "./logViewer";
 
 // One language server is launched per (outermost) workspace folder, keyed by
 // the folder URI. A folderless client handles untitled buffers. This mirrors
@@ -39,6 +40,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     setStatus("starting", "PHPantom language server is starting.");
 
     registerPhpLanguageConfiguration(context);
+
+    context.subscriptions.push(new LogViewer(context));
 
     context.subscriptions.push(
         vscode.commands.registerCommand("phpantom.restartServer", async () => {

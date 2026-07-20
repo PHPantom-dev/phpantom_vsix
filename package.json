@@ -92,6 +92,10 @@
             {
                 "command": "phpantom.clearDownloadedServer",
                 "title": "PHPantom: Clear Downloaded Language Server"
+            },
+            {
+                "command": "phpantom.showLogViewer",
+                "title": "PHPantom: Show Logs"
             }
         ],
         "configuration": {

@@ -18,6 +18,7 @@ PHP language support for Visual Studio Code powered by [PHPantom](https://github
 - **Document links** for include/require paths.
 - **Deep type intelligence.** Generics (`@template`), PHPStan/Psalm annotations, and framework-aware analysis including Laravel Eloquent.
 - **Blade templates.** Completion, diagnostics, and navigation in `.blade.php` files, with VS Code's native HTML completion and Emmet still active in the markup.
+- **Log viewer.** A panel that tails `storage/logs/*.log` with log-level highlighting and click-through on stack-trace frames. A status bar item shows a subtle dot when a log changes since you last looked.
 
 ![PHPantom showing hover and completion on a Laravel query](https://raw.githubusercontent.com/PHPantom-dev/phpantom_vsix/master/assets/hover-compleation.png)
 
@@ -50,6 +51,7 @@ To use a custom binary, set `phpantom.serverPath` to the path of your `phpantom_
 - **PHPantom: Show Server Version.** Display the running server version.
 - **PHPantom: Check for Server Update.** Check for a newer server binary.
 - **PHPantom: Clear Downloaded Language Server.** Remove cached server binaries.
+- **PHPantom: Show Logs.** Open the log viewer for `storage/logs/*.log`.
 
 ## How It Works
 

@@ -48,12 +48,6 @@ and gutter icons on test classes/methods, backed by the standard
 carefully — full test-explorer trees are a large maintenance surface;
 start with "run this test / run this file".
 
-## V6. Log viewer
-
-A low-priority quality-of-life panel tailing `storage/logs/*.log`
-with level highlighting and stack-frame click-through. Plain file
-tailing only; no log-shipping integrations.
-
 ## V7. `.env` ↔ config affordances
 
 Editor-side niceties on top of the server's existing env/config
