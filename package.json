@@ -100,12 +100,28 @@
             {
                 "command": "phpantom.runArtisanCommand",
                 "title": "PHPantom: Run Artisan Command"
+            },
+            {
+                "command": "phpantom.generateModelAnnotations",
+                "title": "PHPantom: Generate Model Annotations"
+            },
+            {
+                "command": "phpantom.regenerateModelAnnotations",
+                "title": "PHPantom: Regenerate Model Annotations"
             }
         ],
         "menus": {
             "commandPalette": [
                 {
                     "command": "phpantom.runArtisanCommand",
+                    "when": "workspaceFolderCount != 0"
+                },
+                {
+                    "command": "phpantom.generateModelAnnotations",
+                    "when": "workspaceFolderCount != 0"
+                },
+                {
+                    "command": "phpantom.regenerateModelAnnotations",
                     "when": "workspaceFolderCount != 0"
                 }
             ]

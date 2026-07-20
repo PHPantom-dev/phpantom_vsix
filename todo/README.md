@@ -61,33 +61,3 @@ container state, and facade string-alias resolution without a
 `::class` accessor. The extension can take the risk of a stale panel
 that the user refreshes; the server can't take the risk of a stale
 diagnostic that looks like ground truth.
-
-## V9. Model `@property` annotation generation
-
-A "Generate model annotations" palette command that boots the app
-once via a small bundled `artisan tinker` script (reuse the shared
-artisan runner in `src/artisan.ts`) to read each Eloquent model's
-column types from the live database connection, then writes them as
-`@property` docblocks on the model class. PHPantom's "code-declared
-types win" philosophy already treats `@property` tags as the most
-authoritative source, so a one-time boot in the editor is the
-sanctioned way to close the "Model column types from a live database
-connection" row in `laravel.md`'s out-of-scope table. The boot
-happens once, by the user's choice, and the server goes back to being
-purely static on the next parse. Prompt before overwriting
-hand-written annotations, and add a "regenerate" variant for after
-migrations run.
-
-Deliberately out of scope, unlike `barryvdh/laravel-ide-helper`:
-
-- **No dependency on `laravel-ide-helper`.** It will not be installed,
-  and its padding fights PHPantom's own inference. The bundled tinker
-  script is the only code path, so output stays consistent whether or
-  not the package happens to be present.
-- **No `@mixin` generation.** ide-helper's `@mixin \Eloquent` line is
-  wrong for PHPantom, which already infers the builder and query
-  methods statically. Emitting it would degrade resolution, not help
-  it. `@property` is the only output.
-- Respect model `$casts` when mapping column types (e.g. `datetime`
-  casts to a Carbon type, `bool` casts to `bool`) so the annotations
-  match what the developer actually sees at runtime.
