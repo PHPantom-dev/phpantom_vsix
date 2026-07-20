@@ -140,6 +140,13 @@
                     "command": "phpantom.regenerateModelAnnotations",
                     "when": "workspaceFolderCount != 0"
                 }
+            ],
+            "explorer/context": [
+                {
+                    "command": "phpantom.newLaravelClass",
+                    "when": "explorerResourceIsFolder && workspaceFolderCount != 0",
+                    "group": "navigation@100"
+                }
             ]
         },
         "configuration": {

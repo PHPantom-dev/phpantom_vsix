@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import {
     ArtisanContext,
+    collectFlagOptions,
     disposeArtisanTerminal,
     findArtisanContexts,
     pickArtisanContext,
@@ -343,53 +344,20 @@ async function collectArguments(command: ArtisanCommand): Promise<string[] | und
 }
 
 /**
- * Let the user toggle the command's options via a multi-select quick-pick,
+ * Let the user toggle the command's options via the shared flag picker,
  * prompting for a value on options that take one. Returns `undefined` on
  * cancellation of a required value prompt.
  */
-async function collectOptions(command: ArtisanCommand): Promise<string[] | undefined> {
-    if (command.options.length === 0) {
-        return [];
-    }
-
-    const selected = await vscode.window.showQuickPick(
+function collectOptions(command: ArtisanCommand): Promise<string[] | undefined> {
+    return collectFlagOptions(
+        `artisan ${command.name}`,
         command.options.map((option) => ({
-            label: option.name,
-            description: option.acceptValue ? "takes a value" : undefined,
-            detail: option.description || undefined,
-            option
-        })),
-        {
-            title: `artisan ${command.name}`,
-            placeHolder: "Select options to include (optional)",
-            canPickMany: true
-        }
+            flag: option.name,
+            acceptValue: option.acceptValue,
+            valueRequired: option.valueRequired,
+            description: option.description
+        }))
     );
-    if (selected === undefined) {
-        return undefined;
-    }
-
-    const tokens: string[] = [];
-    for (const { option } of selected) {
-        if (!option.acceptValue) {
-            tokens.push(option.name);
-            continue;
-        }
-        const value = await vscode.window.showInputBox({
-            title: `artisan ${command.name}`,
-            prompt: `Value for ${option.name}${option.description ? `: ${option.description}` : ""}`,
-            ignoreFocusOut: true,
-            validateInput: (input) =>
-                option.valueRequired && input.trim() === "" ? `${option.name} requires a value.` : undefined
-        });
-        if (value === undefined) {
-            return undefined;
-        }
-        const trimmed = value.trim();
-        // A non-required value option toggled with no value passes as a bare flag.
-        tokens.push(trimmed === "" ? option.name : `${option.name}=${trimmed}`);
-    }
-    return tokens;
 }
 
 /**

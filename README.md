@@ -20,6 +20,7 @@ PHP language support for Visual Studio Code powered by [PHPantom](https://github
 - **Blade templates.** Completion, diagnostics, and navigation in `.blade.php` files, with VS Code's native HTML completion and Emmet still active in the markup.
 - **Log viewer.** A panel that tails `storage/logs/*.log` with log-level highlighting and click-through on stack-trace frames. A status bar item shows a subtle dot when a log changes since you last looked.
 - **Artisan command runner.** Browse your application's artisan commands in a quick-pick, fill in their arguments and options, and run them in the integrated terminal.
+- **Laravel file generation.** Create a model, controller, request, migration, and more via `artisan make:*` from the command palette or by right-clicking a folder in the explorer, which pre-fills the namespace. Toggle the common `make:*` flags in the picker, and PHPantom opens the generated file. When artisan cannot boot, the common kinds fall back to a bundled template written straight to disk.
 - **Route list.** A panel listing your application's routes (method, URI, name, action) with a filter box and click-through from an action to the controller method. It refreshes as your route files change.
 - **Model annotations.** Generate `@property` docblocks on your Eloquent models from the live database schema, honouring `$casts`, so column access is fully typed. A one-time boot you trigger; the language server itself stays purely static.
 
@@ -57,7 +58,7 @@ To use a custom binary, set `phpantom.serverPath` to the path of your `phpantom_
 - **PHPantom: Clear Downloaded Language Server.** Remove cached server binaries.
 - **PHPantom: Show Logs.** Open the log viewer for `storage/logs/*.log`.
 - **PHPantom: Run Artisan Command.** Pick an artisan command, fill in its arguments and options, and run it in the terminal.
-- **PHPantom: New Laravel Class...** Pick a class kind (model, controller, request, migration, job, and more), type a name, and PHPantom generates it via the matching `artisan make:*` command.
+- **PHPantom: New Laravel Class...** Pick a class kind (model, controller, request, migration, job, and more), type a name, toggle the common `make:*` flags, and PHPantom generates it via the matching `artisan make:*` command and opens the file. Also available by right-clicking a folder in the explorer, where the namespace is pre-filled from the folder. Falls back to a bundled template for the common kinds when artisan cannot boot.
 - **PHPantom: Show Route List.** Open the route list panel with filtering and click-through to controller methods.
 - **PHPantom: Generate Model Annotations.** Boot the app once to read your Eloquent models' column types from the database and write them as `@property` docblocks.
 - **PHPantom: Regenerate Model Annotations.** Refresh existing model annotations after migrations, without prompting.

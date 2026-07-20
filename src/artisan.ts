@@ -184,6 +184,77 @@ export function runArtisanInTerminal(context: ArtisanContext, args: string[]): v
     terminal.sendText(commandLine);
 }
 
+/**
+ * A command-line flag offered in the shared option picker. Both the Run Artisan
+ * Command palette (options parsed from a command's definition) and Laravel file
+ * generation (a curated set of `make:*` flags) collect options through the same
+ * flow so the prompts stay consistent, per the extension roadmap.
+ */
+export interface FlagOption {
+    /** The flag token including its leading dashes, e.g. `-m` or `--model`. */
+    flag: string;
+    /** Whether the flag takes a value (`--model=User`) rather than being a bare toggle. */
+    acceptValue: boolean;
+    /** Whether a value is mandatory once the flag is selected. */
+    valueRequired: boolean;
+    /** Human-readable description, shown in the quick-pick detail. */
+    description: string;
+}
+
+/**
+ * Let the user toggle a set of flags via a multi-select quick-pick, prompting
+ * for a value on flags that take one, and return the assembled command-line
+ * tokens. Returns `undefined` when the user cancels a required value prompt (so
+ * the caller aborts the whole run) and an empty list when there are no flags.
+ */
+export async function collectFlagOptions(
+    title: string,
+    options: FlagOption[]
+): Promise<string[] | undefined> {
+    if (options.length === 0) {
+        return [];
+    }
+
+    const selected = await vscode.window.showQuickPick(
+        options.map((option) => ({
+            label: option.flag,
+            description: option.acceptValue ? "takes a value" : undefined,
+            detail: option.description || undefined,
+            option
+        })),
+        {
+            title,
+            placeHolder: "Select options to include (optional)",
+            canPickMany: true
+        }
+    );
+    if (selected === undefined) {
+        return undefined;
+    }
+
+    const tokens: string[] = [];
+    for (const { option } of selected) {
+        if (!option.acceptValue) {
+            tokens.push(option.flag);
+            continue;
+        }
+        const value = await vscode.window.showInputBox({
+            title,
+            prompt: `Value for ${option.flag}${option.description ? `: ${option.description}` : ""}`,
+            ignoreFocusOut: true,
+            validateInput: (input) =>
+                option.valueRequired && input.trim() === "" ? `${option.flag} requires a value.` : undefined
+        });
+        if (value === undefined) {
+            return undefined;
+        }
+        const trimmed = value.trim();
+        // A non-required value option toggled with no value passes as a bare flag.
+        tokens.push(trimmed === "" ? option.flag : `${option.flag}=${trimmed}`);
+    }
+    return tokens;
+}
+
 /** Forget a closed terminal so a later run recreates it. */
 export function disposeArtisanTerminal(terminal: vscode.Terminal): void {
     for (const [key, tracked] of artisanTerminals) {

@@ -49,7 +49,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
     registerArtisanCommands(context, outputChannel);
 
-    registerLaravelMakeCommands(context);
+    registerLaravelMakeCommands(context, outputChannel);
 
     registerModelAnnotationCommands(context, outputChannel);
 

@@ -13,48 +13,6 @@ tooling, exactly like a test runner. Anything the extension learns by
 running the app stays in the extension (UI convenience) and is never
 fed back into the server's type engine.
 
-## V3. Laravel file generation
-
-The palette entry `New Laravel Class...` ships: it picks a generator
-(model, controller, request, migration, job, and more) and shells out
-to the matching `artisan make:*` via the shared runner. The remaining
-pieces below build on that generator catalogue.
-
-### V3a. Explorer context menu with namespace pre-fill
-
-Add a `New Laravel Class...` entry to the explorer folder context menu
-that pre-fills the name from the clicked directory's namespace, mapped
-back through the project's composer.json PSR-4 roots (e.g. right-click
-`app/Models/` → the model is created as `Models\<name>`). This is the
-one piece that needs composer.json PSR-4 parsing, which does not exist
-in the extension yet.
-
-### V3b. Bundled-template fallback
-
-When `artisan` cannot boot (broken checkout, no PHP), fall back to
-bundled stub files written directly to disk so generation still works.
-Start with the common kinds (model, controller, request) and log a
-clear message for kinds that are artisan-only; matching artisan's full
-`make:*` surface offline is not worth the template maintenance.
-
-### V3c. Per-generator options
-
-Coming from PhpStorm's Laravel Idea, users expect the common `make:*`
-flags in the picker rather than typing them by hand: `make:model`
-with `-m`/`-f`/`-s`/`-c`/`--resource`/`--pivot`, `make:controller`
-with `--resource`/`--api`/`--model`/`--invokable`, `make:migration`
-with `--create`/`--table`. Reuse the option-collection flow from the
-Run Artisan Command palette so the prompts stay consistent.
-
-### V3d. Reveal and open the generated file
-
-After a successful `make:*`, open the newly created file in the editor
-(and reveal it in the explorer). Artisan prints the path it wrote;
-capture that instead of running blind in the terminal, or resolve the
-expected path from the generator plus PSR-4 roots. This matches the
-"create and jump straight to it" flow both PhpStorm and the Laravel VS
-Code extension provide.
-
 ## V5. Test runner integration
 
 Contribute a test controller for PHPUnit/Pest: run-test code lenses
