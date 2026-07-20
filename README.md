@@ -1,5 +1,9 @@
 # PHPantom for VS Code and Cursor
 
+> **DEPRECATED:** This `CicerBro.phpantom` extension is deprecated. Install the official [`phpantom.phpantom`](https://open-vsx.org/extension/phpantom/phpantom) extension instead, then uninstall this one.
+>
+> On activation, this extension shows a warning with an **Install Official** action that runs `workbench.extensions.installExtension` for `phpantom.phpantom`, then uninstalls `CicerBro.phpantom`. This prompt matters most in Cursor, which uses Open VSX but does not surface Open VSX deprecation notices in the Extensions UI.
+
 [PHPantom](https://github.com/AJenbo/phpantom_lsp) is a fast PHP language server written in Rust. This extension starts `phpantom_lsp` automatically for PHP files in VS Code-compatible editors, including Cursor.
 
 On first activation, the extension looks for a server binary in this order:
@@ -17,9 +21,9 @@ On startup, the PHPantom output channel logs the extension version, workspace pa
 
 ## Cursor
 
-Once published, install PHPantom from Open VSX in Cursor's Extensions view.
+This `CicerBro.phpantom` listing is deprecated. Install [`phpantom.phpantom`](https://open-vsx.org/extension/phpantom/phpantom) from Open VSX in Cursor's Extensions view, then uninstall this extension. Cursor does not surface Open VSX deprecation notices in the UI, so prefer the in-editor **Install Official** prompt on activation.
 
-For a local package:
+For a local package of this deprecated extension:
 
 1. Run `npm install` in this directory.
 2. Run `npm run package`.
@@ -28,7 +32,7 @@ For a local package:
 
 ## VS Code
 
-Install the generated `.vsix` with `Extensions: Install from VSIX...`, or install from the marketplace if PHPantom is published there in the future.
+Prefer the official [`phpantom.phpantom`](https://open-vsx.org/extension/phpantom/phpantom) extension. To install this deprecated package locally, use `Extensions: Install from VSIX...`, or install from the marketplace if it is still listed.
 
 ## Configuration
 

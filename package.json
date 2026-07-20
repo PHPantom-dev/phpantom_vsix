@@ -1,8 +1,8 @@
 {
     "name": "phpantom",
-    "displayName": "PHPantom",
-    "description": "Fast PHP language server with Laravel and PHPStan-aware type intelligence.",
-    "version": "0.3.2",
+    "displayName": "[DEPRECATED] PHPantom",
+    "description": "DEPRECATED: Install the official phpantom.phpantom extension instead. Fast PHP language server with Laravel and PHPStan-aware type intelligence.",
+    "version": "0.3.3",
     "publisher": "CicerBro",
     "license": "MIT",
     "icon": "assets/spookaphant.png",

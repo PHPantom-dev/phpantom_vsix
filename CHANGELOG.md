@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.3 - 2026-07-20
+
+- Marked the extension display name as `[DEPRECATED]`.
+- Show a warning on activation with an **Install Official** action that installs `phpantom.phpantom`, then uninstalls `CicerBro.phpantom`.
+- Documented the migration to the official extension in the README (especially for Cursor, which does not surface Open VSX deprecation notices).
+
 ## 0.3.2 - 2026-05-19
 
 - Improved PHPDoc hover rendering for paragraph breaks, inline `{@code ...}` tags, and `@see` references.

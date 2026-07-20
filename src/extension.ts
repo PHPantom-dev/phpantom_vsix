@@ -20,6 +20,8 @@ let lifecycleQueue: Promise<void> = Promise.resolve();
 let pendingUpdateServerPath: string | undefined;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
+    void promptDeprecatedMigration();
+
     outputChannel = vscode.window.createOutputChannel("PHPantom");
     context.subscriptions.push(outputChannel);
 
@@ -89,6 +91,35 @@ export async function deactivate(): Promise<void> {
     clearUpdateTimer();
     await lifecycleQueue;
     await stopClient();
+}
+
+const OFFICIAL_EXTENSION_ID = "phpantom.phpantom";
+const DEPRECATED_EXTENSION_ID = "CicerBro.phpantom";
+
+async function promptDeprecatedMigration(): Promise<void> {
+    const choice = await vscode.window.showWarningMessage(
+        "This PHPantom extension (CicerBro.phpantom) is deprecated. Install the official phpantom.phpantom extension, then uninstall this one.",
+        "Install Official"
+    );
+
+    if (choice !== "Install Official") {
+        return;
+    }
+
+    try {
+        await vscode.commands.executeCommand(
+            "workbench.extensions.installExtension",
+            OFFICIAL_EXTENSION_ID
+        );
+        await vscode.commands.executeCommand(
+            "workbench.extensions.uninstallExtension",
+            DEPRECATED_EXTENSION_ID
+        );
+    } catch (error) {
+        vscode.window.showErrorMessage(
+            `Failed to migrate to ${OFFICIAL_EXTENSION_ID}: ${formatError(error)}`
+        );
+    }
 }
 
 async function restartServer(context: vscode.ExtensionContext): Promise<void> {
