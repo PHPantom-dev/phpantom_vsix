@@ -102,6 +102,10 @@
                 "title": "PHPantom: Run Artisan Command"
             },
             {
+                "command": "phpantom.showRouteList",
+                "title": "PHPantom: Show Route List"
+            },
+            {
                 "command": "phpantom.generateModelAnnotations",
                 "title": "PHPantom: Generate Model Annotations"
             },
@@ -114,6 +118,10 @@
             "commandPalette": [
                 {
                     "command": "phpantom.runArtisanCommand",
+                    "when": "workspaceFolderCount != 0"
+                },
+                {
+                    "command": "phpantom.showRouteList",
                     "when": "workspaceFolderCount != 0"
                 },
                 {

@@ -23,15 +23,6 @@ templates so generation still works on a broken checkout. Reuse the
 shared artisan runner (`src/artisan.ts`) for context discovery and the
 terminal run, matching the Artisan command runner.
 
-## V4. Route list panel
-
-A tree/webview panel listing the application's routes (method, URI,
-name, action) with click-through navigation to the controller method.
-Source the data from the language server (it already indexes route
-registrations statically) via a custom LSP request rather than
-`artisan route:list`, so the panel works without booting and stays
-live as files change. Filter box for URI/name/action.
-
 ## V5. Test runner integration
 
 Contribute a test controller for PHPUnit/Pest: run-test code lenses

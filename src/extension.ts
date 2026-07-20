@@ -10,6 +10,7 @@ import {
 } from "./downloader";
 import { LogViewer } from "./logViewer";
 import { registerModelAnnotationCommands } from "./modelAnnotations";
+import { RouteList } from "./routeList";
 
 // One language server is launched per (outermost) workspace folder, keyed by
 // the folder URI. A folderless client handles untitled buffers. This mirrors
@@ -48,6 +49,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     registerArtisanCommands(context, outputChannel);
 
     registerModelAnnotationCommands(context, outputChannel);
+
+    context.subscriptions.push(new RouteList(context, outputChannel));
 
     context.subscriptions.push(
         vscode.commands.registerCommand("phpantom.restartServer", async () => {

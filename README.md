@@ -20,6 +20,7 @@ PHP language support for Visual Studio Code powered by [PHPantom](https://github
 - **Blade templates.** Completion, diagnostics, and navigation in `.blade.php` files, with VS Code's native HTML completion and Emmet still active in the markup.
 - **Log viewer.** A panel that tails `storage/logs/*.log` with log-level highlighting and click-through on stack-trace frames. A status bar item shows a subtle dot when a log changes since you last looked.
 - **Artisan command runner.** Browse your application's artisan commands in a quick-pick, fill in their arguments and options, and run them in the integrated terminal.
+- **Route list.** A panel listing your application's routes (method, URI, name, action) with a filter box and click-through from an action to the controller method. It refreshes as your route files change.
 - **Model annotations.** Generate `@property` docblocks on your Eloquent models from the live database schema, honouring `$casts`, so column access is fully typed. A one-time boot you trigger; the language server itself stays purely static.
 
 ![PHPantom showing hover and completion on a Laravel query](https://raw.githubusercontent.com/PHPantom-dev/phpantom_vsix/master/assets/hover-compleation.png)
@@ -56,6 +57,7 @@ To use a custom binary, set `phpantom.serverPath` to the path of your `phpantom_
 - **PHPantom: Clear Downloaded Language Server.** Remove cached server binaries.
 - **PHPantom: Show Logs.** Open the log viewer for `storage/logs/*.log`.
 - **PHPantom: Run Artisan Command.** Pick an artisan command, fill in its arguments and options, and run it in the terminal.
+- **PHPantom: Show Route List.** Open the route list panel with filtering and click-through to controller methods.
 - **PHPantom: Generate Model Annotations.** Boot the app once to read your Eloquent models' column types from the database and write them as `@property` docblocks.
 - **PHPantom: Regenerate Model Annotations.** Refresh existing model annotations after migrations, without prompting.
 
