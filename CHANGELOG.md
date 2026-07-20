@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-07-20
+
 ### Added
 
 - Log viewer panel that tails `storage/logs/*.log` with log-level highlighting and click-through navigation from stack-trace frames to the referenced file and line. A status bar item opens it and shows a subtle dot when a log changes since it was last viewed.
