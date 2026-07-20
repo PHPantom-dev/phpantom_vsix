@@ -8,6 +8,7 @@ import {
     clearDownloadedServer,
     resolveServerBinary
 } from "./downloader";
+import { registerHoverCommands } from "./hover";
 import { registerLaravelMakeCommands } from "./laravelMake";
 import { LogViewer } from "./logViewer";
 import { registerModelAnnotationCommands } from "./modelAnnotations";
@@ -44,6 +45,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     setStatus("starting", "PHPantom language server is starting.");
 
     registerPhpLanguageConfiguration(context);
+
+    registerHoverCommands(context);
 
     context.subscriptions.push(new LogViewer(context));
 
