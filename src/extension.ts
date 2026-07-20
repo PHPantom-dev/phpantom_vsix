@@ -8,6 +8,7 @@ import {
     clearDownloadedServer,
     resolveServerBinary
 } from "./downloader";
+import { registerLaravelMakeCommands } from "./laravelMake";
 import { LogViewer } from "./logViewer";
 import { registerModelAnnotationCommands } from "./modelAnnotations";
 import { RouteList } from "./routeList";
@@ -47,6 +48,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     context.subscriptions.push(new LogViewer(context));
 
     registerArtisanCommands(context, outputChannel);
+
+    registerLaravelMakeCommands(context);
 
     registerModelAnnotationCommands(context, outputChannel);
 

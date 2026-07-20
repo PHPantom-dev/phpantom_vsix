@@ -102,6 +102,10 @@
                 "title": "PHPantom: Run Artisan Command"
             },
             {
+                "command": "phpantom.newLaravelClass",
+                "title": "PHPantom: New Laravel Class..."
+            },
+            {
                 "command": "phpantom.showRouteList",
                 "title": "PHPantom: Show Route List"
             },
@@ -118,6 +122,10 @@
             "commandPalette": [
                 {
                     "command": "phpantom.runArtisanCommand",
+                    "when": "workspaceFolderCount != 0"
+                },
+                {
+                    "command": "phpantom.newLaravelClass",
                     "when": "workspaceFolderCount != 0"
                 },
                 {
@@ -191,7 +199,7 @@
         "vscode:prepublish": "node esbuild.js"
     },
     "dependencies": {
-        "adm-zip": "^0.5.16",
+        "adm-zip": "^0.6.0",
         "tar": "^7.4.3",
         "vscode-languageclient": "^9.0.1"
     },

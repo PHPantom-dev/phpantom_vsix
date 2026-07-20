@@ -57,6 +57,7 @@ To use a custom binary, set `phpantom.serverPath` to the path of your `phpantom_
 - **PHPantom: Clear Downloaded Language Server.** Remove cached server binaries.
 - **PHPantom: Show Logs.** Open the log viewer for `storage/logs/*.log`.
 - **PHPantom: Run Artisan Command.** Pick an artisan command, fill in its arguments and options, and run it in the terminal.
+- **PHPantom: New Laravel Class...** Pick a class kind (model, controller, request, migration, job, and more), type a name, and PHPantom generates it via the matching `artisan make:*` command.
 - **PHPantom: Show Route List.** Open the route list panel with filtering and click-through to controller methods.
 - **PHPantom: Generate Model Annotations.** Boot the app once to read your Eloquent models' column types from the database and write them as `@property` docblocks.
 - **PHPantom: Regenerate Model Annotations.** Refresh existing model annotations after migrations, without prompting.
