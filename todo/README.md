@@ -13,23 +13,15 @@ tooling, exactly like a test runner. Anything the extension learns by
 running the app stays in the extension (UI convenience) and is never
 fed back into the server's type engine.
 
-## V2. Artisan command runner
-
-A `PHPantom: Run Artisan Command` palette command backed by a VS Code
-task provider. Enumerate commands by running `php artisan list
---format=json` in the workspace (graceful empty state when the app
-doesn't boot), show them in a quick-pick with their descriptions,
-prompt for arguments/options declared in the command's definition,
-and run in the integrated terminal. Cache the list per workspace with
-a manual refresh.
-
 ## V3. Laravel file generation
 
 `New Laravel Class...` explorer context-menu and palette entries that
 shell out to `artisan make:*` (model, controller, request, migration,
 job, etc.), pre-filling the name from the clicked directory's
 namespace. Where `artisan` is unavailable, fall back to bundled file
-templates so generation still works on a broken checkout.
+templates so generation still works on a broken checkout. Reuse the
+shared artisan runner (`src/artisan.ts`) for context discovery and the
+terminal run, matching the Artisan command runner.
 
 ## V4. Route list panel
 
@@ -70,22 +62,32 @@ container state, and facade string-alias resolution without a
 that the user refreshes; the server can't take the risk of a stale
 diagnostic that looks like ground truth.
 
-## V9. IDE-helper style stub generation commands
+## V9. Model `@property` annotation generation
 
-Palette commands ("Generate model annotations", "Generate macro
-stubs", "Generate manager/driver stubs") that boot the app once —
-via `artisan ide-helper:models` / `ide-helper:generate` when
-`barryvdh/laravel-ide-helper` is installed, or a small bundled
-tinker script otherwise — and write the result as `@property` /
-`@mixin` docblocks (or a generated stub file alongside the project).
-Unlike V8, the output here is a durable static artifact, not a
-transient panel: PHPantom's "code-declared types win" philosophy
-already treats `@property` tags as the most authoritative source, so
-a one-time boot in the editor is the sanctioned way to close the
-"Model column types from a live database connection", "Macro
-discovery (`Macroable` trait)", and "Manager → driver resolution"
-rows in `laravel.md`'s out-of-scope table — the boot happens once,
-by the user's choice, and the server goes back to being purely
-static on the next parse. Prompt before overwriting hand-written
-annotations, and add a "regenerate" variant for after migrations
-run.
+A "Generate model annotations" palette command that boots the app
+once via a small bundled `artisan tinker` script (reuse the shared
+artisan runner in `src/artisan.ts`) to read each Eloquent model's
+column types from the live database connection, then writes them as
+`@property` docblocks on the model class. PHPantom's "code-declared
+types win" philosophy already treats `@property` tags as the most
+authoritative source, so a one-time boot in the editor is the
+sanctioned way to close the "Model column types from a live database
+connection" row in `laravel.md`'s out-of-scope table. The boot
+happens once, by the user's choice, and the server goes back to being
+purely static on the next parse. Prompt before overwriting
+hand-written annotations, and add a "regenerate" variant for after
+migrations run.
+
+Deliberately out of scope, unlike `barryvdh/laravel-ide-helper`:
+
+- **No dependency on `laravel-ide-helper`.** It will not be installed,
+  and its padding fights PHPantom's own inference. The bundled tinker
+  script is the only code path, so output stays consistent whether or
+  not the package happens to be present.
+- **No `@mixin` generation.** ide-helper's `@mixin \Eloquent` line is
+  wrong for PHPantom, which already infers the builder and query
+  methods statically. Emitting it would degrade resolution, not help
+  it. `@property` is the only output.
+- Respect model `$casts` when mapping column types (e.g. `datetime`
+  casts to a Carbon type, `bool` casts to `bool`) so the annotations
+  match what the developer actually sees at runtime.

@@ -19,6 +19,7 @@ PHP language support for Visual Studio Code powered by [PHPantom](https://github
 - **Deep type intelligence.** Generics (`@template`), PHPStan/Psalm annotations, and framework-aware analysis including Laravel Eloquent.
 - **Blade templates.** Completion, diagnostics, and navigation in `.blade.php` files, with VS Code's native HTML completion and Emmet still active in the markup.
 - **Log viewer.** A panel that tails `storage/logs/*.log` with log-level highlighting and click-through on stack-trace frames. A status bar item shows a subtle dot when a log changes since you last looked.
+- **Artisan command runner.** Browse your application's artisan commands in a quick-pick, fill in their arguments and options, and run them in the integrated terminal.
 
 ![PHPantom showing hover and completion on a Laravel query](https://raw.githubusercontent.com/PHPantom-dev/phpantom_vsix/master/assets/hover-compleation.png)
 
@@ -38,6 +39,7 @@ To use a custom binary, set `phpantom.serverPath` to the path of your `phpantom_
 | Setting | Default | Description |
 | --- | --- | --- |
 | `phpantom.serverPath` | `""` | Path to a custom `phpantom_lsp` binary. |
+| `phpantom.phpPath` | `""` | PHP executable used to run artisan commands. Empty uses `php` on `PATH`. |
 | `phpantom.releaseTag` | `"latest"` | GitHub release tag to download. |
 | `phpantom.autoDownload` | `true` | Automatically download the server if not found. |
 | `phpantom.autoUpdate` | `true` | Check for newer releases periodically. |
@@ -52,6 +54,7 @@ To use a custom binary, set `phpantom.serverPath` to the path of your `phpantom_
 - **PHPantom: Check for Server Update.** Check for a newer server binary.
 - **PHPantom: Clear Downloaded Language Server.** Remove cached server binaries.
 - **PHPantom: Show Logs.** Open the log viewer for `storage/logs/*.log`.
+- **PHPantom: Run Artisan Command.** Pick an artisan command, fill in its arguments and options, and run it in the terminal.
 
 ## How It Works
 

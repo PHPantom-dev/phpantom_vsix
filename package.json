@@ -96,8 +96,20 @@
             {
                 "command": "phpantom.showLogViewer",
                 "title": "PHPantom: Show Logs"
+            },
+            {
+                "command": "phpantom.runArtisanCommand",
+                "title": "PHPantom: Run Artisan Command"
             }
         ],
+        "menus": {
+            "commandPalette": [
+                {
+                    "command": "phpantom.runArtisanCommand",
+                    "when": "workspaceFolderCount != 0"
+                }
+            ]
+        },
         "configuration": {
             "title": "PHPantom",
             "properties": {
@@ -127,6 +139,12 @@
                     "minimum": 1,
                     "maximum": 168,
                     "description": "How often to check for newer PHPantom language server releases while the extension is active. The extension also checks once on startup without blocking activation."
+                },
+                "phpantom.phpPath": {
+                    "type": "string",
+                    "default": "",
+                    "scope": "resource",
+                    "description": "Absolute path to the PHP executable used to run artisan commands. When empty, PHPantom uses php on your PATH. The language server itself never runs PHP; this is only for editor tooling like the Artisan command runner."
                 },
                 "phpantom.trace.server": {
                     "type": "string",

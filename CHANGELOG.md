@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added
 
 - Log viewer panel that tails `storage/logs/*.log` with log-level highlighting and click-through navigation from stack-trace frames to the referenced file and line. A status bar item opens it and shows a subtle dot when a log changes since it was last viewed.
+- Run Artisan Command palette entry. It lists the application's artisan commands with their descriptions, prompts for the arguments and options each command declares, and runs the result in the integrated terminal. The command list is cached per workspace with a refresh entry, and a `phpantom.phpPath` setting selects the PHP executable used to run it.
 
 ## [0.5.0] - 2026-06-03
 

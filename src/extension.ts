@@ -1,6 +1,7 @@
 import { execFile } from "child_process";
 import * as path from "path";
 import * as vscode from "vscode";
+import { registerArtisanCommands } from "./artisanCommand";
 import { applyConfiguredTrace, startClient, StartedClient } from "./client";
 import {
     checkForServerUpdate,
@@ -42,6 +43,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     registerPhpLanguageConfiguration(context);
 
     context.subscriptions.push(new LogViewer(context));
+
+    registerArtisanCommands(context, outputChannel);
 
     context.subscriptions.push(
         vscode.commands.registerCommand("phpantom.restartServer", async () => {
