@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-08-25
+
+### Fixed
+
+- **Second and later language servers start again.** Opening a PHP file in another workspace folder, or an untitled PHP buffer, no longer fails with "command 'phpantom.navigateToPrototype' already exists". Server-provided commands are now shared between servers and run against the project holding the active editor. A server that fails to start is also shut down properly instead of leaving a stray process behind.
+
 ## [0.6.0] - 2026-07-20
 
 ### Added

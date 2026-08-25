@@ -2,13 +2,17 @@ import { ChildProcessWithoutNullStreams, spawn } from "child_process";
 import * as vscode from "vscode";
 import {
     DocumentSelector,
+    DynamicFeature,
+    ExecuteCommandRequest,
     LanguageClient,
     LanguageClientOptions,
     ServerOptions,
+    StaticFeature,
     Trace
 } from "vscode-languageclient/node";
 import { enhancePhpHover } from "./hover";
 import { augmentPhpDocumentSymbols } from "./phpSymbols";
+import { SharedExecuteCommandFeature } from "./serverCommands";
 
 export interface StartedClient {
     client: LanguageClient;
@@ -101,7 +105,7 @@ export async function startClient(
         }
     };
 
-    const client = new LanguageClient(
+    const client = new PhpantomLanguageClient(
         "phpantom",
         "PHPantom",
         serverOptions,
@@ -109,7 +113,16 @@ export async function startClient(
     );
 
     applyConfiguredTrace(client);
-    await client.start();
+    try {
+        await client.start();
+    } catch (error) {
+        // A start that fails part way through leaves the spawned server
+        // running, so reap it rather than letting failed attempts pile up
+        // orphaned processes.
+        await client.dispose(1000).catch(() => undefined);
+        serverProcess?.kill();
+        throw error;
+    }
 
     if (!serverProcess) {
         throw new Error("PHPantom language server started, but the server process was not captured.");
@@ -120,6 +133,26 @@ export async function startClient(
         serverProcess,
         folder
     };
+}
+
+/**
+ * A `LanguageClient` that shares server-advertised commands with the other
+ * folders' clients instead of claiming them for itself.
+ *
+ * The stock execute-command feature registers every command the server
+ * advertises as a global VS Code command, which fails as soon as a second
+ * server starts. Swapping in `SharedExecuteCommandFeature` keeps one
+ * registration per command and routes invocations to the right server.
+ */
+class PhpantomLanguageClient extends LanguageClient {
+    public registerFeature(feature: StaticFeature | DynamicFeature<unknown>): void {
+        if ("registrationType" in feature && feature.registrationType.method === ExecuteCommandRequest.method) {
+            super.registerFeature(new SharedExecuteCommandFeature(this));
+            return;
+        }
+
+        super.registerFeature(feature);
+    }
 }
 
 export function applyConfiguredTrace(client: LanguageClient): void {
