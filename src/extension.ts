@@ -1,5 +1,6 @@
 import { execFile } from "child_process";
 import * as path from "path";
+import * as fs from "fs";
 import * as vscode from "vscode";
 import { registerArtisanCommands } from "./artisanCommand";
 import { applyConfiguredTrace, sendIndexFilters, startClient, StartedClient } from "./client";
@@ -116,8 +117,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                 scheduleServerUpdateChecks(context);
             }
 
-            if (serverResolutionChanged) {
-                const message = `PHPantom language server restarting because ${changedServerSettings.join(", ")} changed.`;
+            const rootDirChanged = event.affectsConfiguration("phpantom.rootDir");
+
+            if (serverResolutionChanged || rootDirChanged) {
+                const changedSettings = [
+                    ...changedServerSettings,
+                    ...(rootDirChanged ? ["phpantom.rootDir"] : [])
+                ];
+                const message = `PHPantom language server restarting because ${changedSettings.join(", ")} changed.`;
                 outputChannel.appendLine(message);
                 vscode.window.showInformationMessage(message);
                 void restartServers(context);
@@ -326,7 +333,13 @@ async function ensureClientForDocument(
         return;
     }
 
-    const folder = getOuterMostWorkspaceFolder(owningFolder);
+    const workspaceFolder = getOuterMostWorkspaceFolder(owningFolder);
+    const folder = getConfiguredRootFolder(workspaceFolder);
+
+    if (!isInsidePath(uri.fsPath, folder.uri.fsPath)) {
+        return;
+    }
+
     if (clients.has(folder.uri.toString())) {
         return;
     }
@@ -386,15 +399,17 @@ async function stopAllClients(): Promise<void> {
 }
 
 async function stopFolderClient(folder: vscode.WorkspaceFolder): Promise<void> {
-    const key = folder.uri.toString();
-    const started = clients.get(key);
-    if (!started) {
-        return;
+    // Clients are keyed by their resolved root (see `phpantom.rootDir`), which
+    // may be inside the workspace folder, so a removed folder can't be looked
+    // up by a key. Stop every client whose root lies inside it.
+    for (const [key, started] of clients) {
+        if (!started.folder) continue
+        if (isInsidePath(started.folder.uri.fsPath, folder.uri.fsPath)) {
+            clients.delete(key);
+            await stopStartedClient(started);
+            outputChannel.appendLine(`PHPantom language server for ${started.folder.name} stopped.`);
+        }
     }
-
-    clients.delete(key);
-    await stopStartedClient(started);
-    outputChannel.appendLine(`PHPantom language server for ${folder.name} stopped.`);
 }
 
 async function stopStartedClient(started: StartedClient): Promise<void> {
@@ -405,6 +420,41 @@ async function stopStartedClient(started: StartedClient): Promise<void> {
     }
 
     await terminateServerProcess(started);
+}
+
+function getConfiguredRootFolder(
+    workspaceFolder: vscode.WorkspaceFolder
+): vscode.WorkspaceFolder {
+    const config = vscode.workspace.getConfiguration("phpantom", workspaceFolder.uri);
+    const configuredRootDir = config.get<string>("rootDir", "").trim();
+
+    if (configuredRootDir === "") {
+        return workspaceFolder;
+    }
+
+    const rootUri = vscode.Uri.joinPath(workspaceFolder.uri, configuredRootDir);
+
+    if (!fs.statSync(rootUri.fsPath, { throwIfNoEntry: false })?.isDirectory()) {
+        vscode.window.showWarningMessage(`phpantom.rootDir "${configuredRootDir}" is not an existing directory. Using the workspace folder instead.`);
+        return workspaceFolder;
+    }
+
+    if (samePath(rootUri.fsPath, workspaceFolder.uri.fsPath)) {
+        return workspaceFolder;
+    }
+
+    if (!isInsidePath(rootUri.fsPath, workspaceFolder.uri.fsPath)) {
+        vscode.window.showWarningMessage(`phpantom.rootDir "${configuredRootDir}" points outside the workspace folder. Using the workspace folder instead.`);
+        return workspaceFolder;
+    }
+
+    // `phpantom.rootDir` can point at a plain subdirectory that isn't a
+    // registered workspace folder, so build a synthetic `WorkspaceFolder` for it.
+    return {
+        uri: rootUri,
+        name: path.relative(workspaceFolder.uri.fsPath, rootUri.fsPath),
+        index: workspaceFolder.index
+    };
 }
 
 // ── Queued lifecycle commands ────────────────────────────────────────────────
