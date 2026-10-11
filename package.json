@@ -194,6 +194,12 @@
                     ],
                     "default": "off",
                     "description": "Trace communication between VS Code/Cursor and the PHPantom language server."
+                },
+                "phpantom.rootDir": {
+                    "type": "string",
+                    "default": "",
+                    "scope": "resource",
+                    "description": "Directory to use as the language server root, relative to the containing workspace folder (e.g. `api`). Useful when the PHP project lives in a subdirectory. PHP files outside this directory are not handled."
                 }
             }
         }
