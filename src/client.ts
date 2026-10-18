@@ -1,16 +1,19 @@
 import { ChildProcessWithoutNullStreams, spawn } from "child_process";
 import * as vscode from "vscode";
 import {
+    DidChangeConfigurationNotification,
     DocumentSelector,
     DynamicFeature,
     ExecuteCommandRequest,
     LanguageClient,
     LanguageClientOptions,
     ServerOptions,
+    State,
     StaticFeature,
     Trace
 } from "vscode-languageclient/node";
 import { enhancePhpHover } from "./hover";
+import { collectIndexFilters } from "./indexFilters";
 import { augmentPhpDocumentSymbols } from "./phpSymbols";
 import { SharedExecuteCommandFeature } from "./serverCommands";
 
@@ -93,6 +96,10 @@ export async function startClient(
         synchronize: {
             configurationSection: "phpantom"
         },
+        // Hand the server this folder's `files.exclude`/`files.associations`
+        // before it indexes anything, so the very first scan already skips
+        // what the editor hides instead of indexing it and dropping it later.
+        initializationOptions: collectIndexFilters(folder),
         middleware: {
             async provideHover(document, position, token, next) {
                 const hover = await next(document, position, token);
@@ -153,6 +160,25 @@ class PhpantomLanguageClient extends LanguageClient {
 
         super.registerFeature(feature);
     }
+}
+
+/**
+ * Re-send a running server the editor's file filters after the user
+ * changed `files.exclude` or `files.associations`.
+ *
+ * Sent explicitly rather than through `synchronize`, which can only sync
+ * the extension's own `phpantom` section, and these two settings are
+ * VS Code's. The server distinguishes the two notifications by whether an
+ * `indexing` block is present, so this cannot clobber the other.
+ */
+export async function sendIndexFilters(started: StartedClient): Promise<void> {
+    if (started.client.state !== State.Running) {
+        return;
+    }
+
+    await started.client.sendNotification(DidChangeConfigurationNotification.type, {
+        settings: collectIndexFilters(started.folder)
+    });
 }
 
 export function applyConfiguredTrace(client: LanguageClient): void {

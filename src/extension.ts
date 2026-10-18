@@ -2,7 +2,7 @@ import { execFile } from "child_process";
 import * as path from "path";
 import * as vscode from "vscode";
 import { registerArtisanCommands } from "./artisanCommand";
-import { applyConfiguredTrace, startClient, StartedClient } from "./client";
+import { applyConfiguredTrace, sendIndexFilters, startClient, StartedClient } from "./client";
 import {
     checkForServerUpdate,
     clearDownloadedServer,
@@ -86,6 +86,22 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             if (event.affectsConfiguration("phpantom.trace.server")) {
                 for (const started of allStartedClients()) {
                     applyConfiguredTrace(started.client);
+                }
+            }
+
+            // The servers index against the editor's own file settings, so
+            // a change to either has to reach them. Cheap enough to push
+            // without a restart, unlike the server-resolution settings below.
+            if (
+                event.affectsConfiguration("files.exclude")
+                || event.affectsConfiguration("files.associations")
+            ) {
+                for (const started of allStartedClients()) {
+                    void sendIndexFilters(started).catch((error: unknown) => {
+                        outputChannel.appendLine(
+                            `Failed to send updated file filters to the PHPantom language server: ${error}`
+                        );
+                    });
                 }
             }
 

@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Your `files.exclude` and `files.associations` settings now shape the index.** Folders you hide in the explorer are no longer indexed, and a pattern you have mapped to `php` (Drupal's `*.module`, say) is picked up as PHP source, without restating either list in `.phpantom.toml`. Each workspace folder's own settings are read, so a multi-root workspace can hide different things in different projects. Changing either setting is sent to the running server, though reconciling an index already built under the old settings needs a server restart ("PHPantom: Restart Language Server"). Two kinds of entry are skipped because the language server has no equivalent for them: a `files.exclude` entry with a `"when"` clause (it depends on which sibling files exist, and hiding real source on a guess is worse than indexing it), and a `files.associations` pattern that is not a plain extension, such as `Jenkinsfile` or `*.blade.php`. Put those in `.phpantom.toml` instead. Requires language server 0.11.0 or newer; older servers ignore the settings as before.
+
 ## [0.6.1] - 2026-08-25
 
 ### Fixed

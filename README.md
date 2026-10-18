@@ -23,6 +23,7 @@ PHP language support for Visual Studio Code powered by [PHPantom](https://github
 - **Laravel file generation.** Create a model, controller, request, migration, and more via `artisan make:*` from the command palette or by right-clicking a folder in the explorer, which pre-fills the namespace. Toggle the common `make:*` flags in the picker, and PHPantom opens the generated file. When artisan cannot boot, the common kinds fall back to a bundled template written straight to disk.
 - **Route list.** A panel listing your application's routes (method, URI, name, action) with a filter box and click-through from an action to the controller method. It refreshes as your route files change.
 - **Model annotations.** Generate `@property` docblocks on your Eloquent models from the live database schema, honouring `$casts`, so column access is fully typed. A one-time boot you trigger; the language server itself stays purely static.
+- **Your file settings shape the index.** `files.exclude` and `files.associations` are forwarded to the language server per workspace folder, so hidden folders stay out of the index and a pattern you map to `php` is treated as PHP source, with no `.phpantom.toml` needed.
 
 ![PHPantom showing hover and completion on a Laravel query](https://raw.githubusercontent.com/PHPantom-dev/phpantom_vsix/master/assets/hover-compleation.png)
 
