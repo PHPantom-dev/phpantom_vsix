@@ -78,3 +78,28 @@ same exception Phpactor's extension makes).
 / workspace paths must line up with the paths the server sees (or be
 remapped). Auto-download, version checks, and the per-folder rooting do
 not apply in remote mode.
+
+## V12. Laravel tooling follows `phpantom.rootDir`
+
+`phpantom.rootDir` moves only the language server. The Artisan command
+runner, Laravel class generation, the route list, and model annotations
+find the app by looking for `artisan` at the top of each workspace
+folder (`findArtisanContexts`), so a Laravel app in `api/` gets language
+features but none of the Laravel tooling. Look for `artisan` in the same
+root the server resolves (`resolveServerRoot`, which would need to move
+somewhere both can share without its fallback warning firing twice).
+The tooling keys off `ArtisanContext.folder`, so handing it the same
+synthetic folder the client gets should carry most of it, but check each
+feature's terminal cwd, file watchers, and PSR-4 lookups.
+
+## V13. Bug: changing a restart setting pops up a notification error
+
+Changing `phpantom.serverPath`, `releaseTag`, `autoDownload`, or
+`rootDir` restarts every server. Each client's `synchronize`
+configuration sync reacts to the same change event and pushes the
+`phpantom` section to its server, which the restart is already tearing
+down, so the client shows "Sending notification
+workspace/didChangeConfiguration failed" as an error. The push is
+pointless there, since a restarted server is sent the current section on
+startup. A `workspace.didChangeConfiguration` middleware that drops the
+push while a restart is pending would silence it. Reported in PR #4.

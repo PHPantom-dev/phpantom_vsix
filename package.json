@@ -199,7 +199,7 @@
                     "type": "string",
                     "default": "",
                     "scope": "resource",
-                    "description": "Directory to use as the language server root, relative to the containing workspace folder (e.g. `api`). Useful when the PHP project lives in a subdirectory. PHP files outside this directory are not handled."
+                    "description": "Subdirectory of the workspace folder that holds the PHP project, for example api when composer.json lives in api/. The language server treats it as the project root, and PHP files outside it get no language features. When empty, the workspace folder itself is the project root."
                 }
             }
         }

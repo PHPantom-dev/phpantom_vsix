@@ -49,6 +49,7 @@ To use a custom binary, set `phpantom.serverPath` to the path of your `phpantom_
 | `phpantom.autoUpdate` | `true` | Check for newer releases periodically. |
 | `phpantom.updateCheckIntervalHours` | `24` | How often to check for updates (1-168 hours). |
 | `phpantom.trace.server` | `"off"` | Trace communication with the language server. |
+| `phpantom.rootDir` | `""` | Subdirectory of the workspace folder that holds the PHP project, such as `api`. The language server treats it as the project root, and PHP files outside it get no language features. Empty uses the workspace folder. |
 
 ## Commands
 

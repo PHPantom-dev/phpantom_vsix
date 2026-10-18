@@ -1,6 +1,6 @@
 import { execFile } from "child_process";
-import * as path from "path";
 import * as fs from "fs";
+import * as path from "path";
 import * as vscode from "vscode";
 import { registerArtisanCommands } from "./artisanCommand";
 import { applyConfiguredTrace, sendIndexFilters, startClient, StartedClient } from "./client";
@@ -117,14 +117,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                 scheduleServerUpdateChecks(context);
             }
 
-            const rootDirChanged = event.affectsConfiguration("phpantom.rootDir");
+            // Moving a server's root needs a restart too, but unlike the
+            // settings above it has no bearing on update checks.
+            const restartSettings = event.affectsConfiguration("phpantom.rootDir")
+                ? [...changedServerSettings, "phpantom.rootDir"]
+                : changedServerSettings;
 
-            if (serverResolutionChanged || rootDirChanged) {
-                const changedSettings = [
-                    ...changedServerSettings,
-                    ...(rootDirChanged ? ["phpantom.rootDir"] : [])
-                ];
-                const message = `PHPantom language server restarting because ${changedSettings.join(", ")} changed.`;
+            if (restartSettings.length > 0) {
+                const message = `PHPantom language server restarting because ${restartSettings.join(", ")} changed.`;
                 outputChannel.appendLine(message);
                 vscode.window.showInformationMessage(message);
                 void restartServers(context);
@@ -333,29 +333,35 @@ async function ensureClientForDocument(
         return;
     }
 
-    const workspaceFolder = getOuterMostWorkspaceFolder(owningFolder);
-    const folder = getConfiguredRootFolder(workspaceFolder);
-
-    if (!isInsidePath(uri.fsPath, folder.uri.fsPath)) {
-        return;
-    }
-
+    const folder = getOuterMostWorkspaceFolder(owningFolder);
     if (clients.has(folder.uri.toString())) {
         return;
     }
 
-    await startFolderClient(context, folder);
+    // A server rooted in a `phpantom.rootDir` subdirectory never claims files
+    // outside it, so opening one of those is no reason to start it.
+    const root = resolveServerRoot(folder);
+    if (!isInsidePath(uri.fsPath, root.uri.fsPath)) {
+        return;
+    }
+
+    await startFolderClient(context, folder, root);
 }
 
 function hasWorkspaceFolders(): boolean {
     return (vscode.workspace.workspaceFolders?.length ?? 0) > 0;
 }
 
+// `root` is where the server is rooted: the folder itself, or the
+// subdirectory `phpantom.rootDir` names. The client is still keyed by the
+// folder, so a folder removed from the workspace finds its server, and a
+// folder never gets a second server while its first is running.
 async function startFolderClient(
     context: vscode.ExtensionContext,
-    folder: vscode.WorkspaceFolder | undefined
+    folder: vscode.WorkspaceFolder | undefined,
+    root: vscode.WorkspaceFolder | undefined = folder
 ): Promise<void> {
-    const label = folder ? folder.name : "untitled files";
+    const label = root ? root.name : "untitled files";
     setStatus("starting", `PHPantom language server is starting for ${label}.`);
 
     const serverPath = await resolveSharedServerPath(context);
@@ -363,7 +369,7 @@ async function startFolderClient(
     // may claim on-disk files; otherwise it would double up with per-folder
     // clients and produce duplicate results.
     const matchOnDiskFiles = !folder && !hasWorkspaceFolders();
-    const started = await startClient(serverPath, folder, outputChannel, matchOnDiskFiles);
+    const started = await startClient(serverPath, root, outputChannel, matchOnDiskFiles);
 
     if (folder) {
         clients.set(folder.uri.toString(), started);
@@ -376,7 +382,7 @@ async function startFolderClient(
     }
 
     setReadyStatus(context);
-    logStartupSummary(context, folder);
+    logStartupSummary(context, root);
 }
 
 async function stopAllClients(): Promise<void> {
@@ -399,17 +405,15 @@ async function stopAllClients(): Promise<void> {
 }
 
 async function stopFolderClient(folder: vscode.WorkspaceFolder): Promise<void> {
-    // Clients are keyed by their resolved root (see `phpantom.rootDir`), which
-    // may be inside the workspace folder, so a removed folder can't be looked
-    // up by a key. Stop every client whose root lies inside it.
-    for (const [key, started] of clients) {
-        if (!started.folder) continue
-        if (isInsidePath(started.folder.uri.fsPath, folder.uri.fsPath)) {
-            clients.delete(key);
-            await stopStartedClient(started);
-            outputChannel.appendLine(`PHPantom language server for ${started.folder.name} stopped.`);
-        }
+    const key = folder.uri.toString();
+    const started = clients.get(key);
+    if (!started) {
+        return;
     }
+
+    clients.delete(key);
+    await stopStartedClient(started);
+    outputChannel.appendLine(`PHPantom language server for ${folder.name} stopped.`);
 }
 
 async function stopStartedClient(started: StartedClient): Promise<void> {
@@ -422,38 +426,50 @@ async function stopStartedClient(started: StartedClient): Promise<void> {
     await terminateServerProcess(started);
 }
 
-function getConfiguredRootFolder(
-    workspaceFolder: vscode.WorkspaceFolder
-): vscode.WorkspaceFolder {
-    const config = vscode.workspace.getConfiguration("phpantom", workspaceFolder.uri);
-    const configuredRootDir = config.get<string>("rootDir", "").trim();
-
-    if (configuredRootDir === "") {
-        return workspaceFolder;
+// The directory a folder's server is rooted at: the folder itself, or the
+// `phpantom.rootDir` subdirectory for a PHP project that does not sit at the
+// top of the repository. A value that leaves the folder or names no directory
+// falls back to the whole folder with a warning, so a typo degrades to the
+// behaviour without the setting instead of leaving the folder unserved.
+function resolveServerRoot(folder: vscode.WorkspaceFolder): vscode.WorkspaceFolder {
+    const rootDir = vscode.workspace
+        .getConfiguration("phpantom", folder.uri)
+        .get<string>("rootDir", "")
+        .trim();
+    if (!rootDir) {
+        return folder;
     }
 
-    const rootUri = vscode.Uri.joinPath(workspaceFolder.uri, configuredRootDir);
-
-    if (!fs.statSync(rootUri.fsPath, { throwIfNoEntry: false })?.isDirectory()) {
-        vscode.window.showWarningMessage(`phpantom.rootDir "${configuredRootDir}" is not an existing directory. Using the workspace folder instead.`);
-        return workspaceFolder;
+    // Resolved rather than URI-joined so that `api/` or Windows separators
+    // still give the canonical path the client's document selector globs on.
+    const rootPath = path.resolve(folder.uri.fsPath, rootDir);
+    if (samePath(rootPath, folder.uri.fsPath)) {
+        return folder;
     }
 
-    if (samePath(rootUri.fsPath, workspaceFolder.uri.fsPath)) {
-        return workspaceFolder;
+    const fallBack = (problem: string): vscode.WorkspaceFolder => {
+        const message = `PHPantom ignored phpantom.rootDir "${rootDir}" because ${problem}. The language server covers the whole folder instead.`;
+        outputChannel.appendLine(message);
+        vscode.window.showWarningMessage(message);
+        return folder;
+    };
+
+    if (!isInsidePath(rootPath, folder.uri.fsPath)) {
+        return fallBack(`it points outside the ${folder.name} folder`);
     }
 
-    if (!isInsidePath(rootUri.fsPath, workspaceFolder.uri.fsPath)) {
-        vscode.window.showWarningMessage(`phpantom.rootDir "${configuredRootDir}" points outside the workspace folder. Using the workspace folder instead.`);
-        return workspaceFolder;
+    if (!fs.statSync(rootPath, { throwIfNoEntry: false })?.isDirectory()) {
+        return fallBack(`${folder.name} has no such directory`);
     }
 
-    // `phpantom.rootDir` can point at a plain subdirectory that isn't a
-    // registered workspace folder, so build a synthetic `WorkspaceFolder` for it.
+    // The subdirectory is not a registered workspace folder, so the client
+    // gets a synthetic one. The name keeps the folder's, so servers rooted
+    // in same-named subdirectories of different folders stay apart.
+    const relative = path.relative(folder.uri.fsPath, rootPath).split(path.sep).join("/");
     return {
-        uri: rootUri,
-        name: path.relative(workspaceFolder.uri.fsPath, rootUri.fsPath),
-        index: workspaceFolder.index
+        uri: vscode.Uri.file(rootPath),
+        name: `${folder.name}/${relative}`,
+        index: folder.index
     };
 }
 

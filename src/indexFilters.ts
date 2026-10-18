@@ -1,3 +1,4 @@
+import * as path from "path";
 import * as vscode from "vscode";
 
 /**
@@ -39,6 +40,15 @@ export function collectIndexFilters(
         .getConfiguration("files", scope)
         .get<Record<string, string>>("associations", {});
 
+    // `folder` is where the server is rooted, which `phpantom.rootDir` can
+    // move below the workspace folder these settings belong to. The globs
+    // are relative to the workspace folder, the server reads them relative
+    // to its root.
+    const workspaceFolder = folder && vscode.workspace.getWorkspaceFolder(folder.uri);
+    const root = folder && workspaceFolder
+        ? path.relative(workspaceFolder.uri.fsPath, folder.uri.fsPath).split(path.sep).join("/")
+        : "";
+
     const exclude: string[] = [];
     for (const [pattern, enabled] of Object.entries(excludeSetting)) {
         // A `{ "when": "$(basename).ts" }` value hides a file only while a
@@ -48,7 +58,7 @@ export function collectIndexFilters(
         if (enabled !== true) {
             continue;
         }
-        exclude.push(...toGitignorePatterns(pattern));
+        exclude.push(...toGitignorePatterns(pattern, root));
     }
 
     const extensions: string[] = [];
@@ -71,16 +81,47 @@ export function collectIndexFilters(
  *
  * The two dialects overlap almost entirely (`**` and `?` mean the same
  * thing in both), so this handles only the three places they diverge.
+ *
+ * `root` is the server's root relative to the workspace folder, with
+ * forward slashes: empty unless `phpantom.rootDir` moved it.
  */
-export function toGitignorePatterns(pattern: string): string[] {
+export function toGitignorePatterns(pattern: string, root = ""): string[] {
     const trimmed = pattern.trim();
     if (!trimmed) {
         return [];
     }
 
     return expandBraces(trimmed)
+        .map((expanded) => relativeToRoot(expanded, root))
+        .filter((relative): relative is string => relative !== undefined)
         .map(normalizeGitignorePattern)
         .filter((normalized): normalized is string => normalized !== undefined);
+}
+
+/**
+ * Re-anchor a glob written against the workspace folder onto `root`, or
+ * `undefined` when it cannot match anything inside `root`.
+ *
+ * A glob starting with `**` matches at any depth, so it is kept as is: from
+ * `root` it can only match less than it did from the folder. Any other glob
+ * is anchored at the folder, so a literal `root/` prefix is stripped, and a
+ * glob that lies outside `root`, reaches it only through a wildcard, or
+ * would hide `root` itself (the user pointed the server there on purpose)
+ * is dropped. Leaving a directory in the index costs a parse, while hiding
+ * one the user did not hide costs its symbols, so this errs towards
+ * dropping rather than matching wildcards segment by segment.
+ */
+function relativeToRoot(pattern: string, root: string): string | undefined {
+    if (!root || pattern === "**" || pattern.startsWith("**/")) {
+        return pattern;
+    }
+
+    if (!pattern.startsWith(`${root}/`)) {
+        return undefined;
+    }
+
+    const relative = pattern.slice(root.length + 1);
+    return relative === "" || relative === "**" ? undefined : relative;
 }
 
 function normalizeGitignorePattern(pattern: string): string | undefined {
