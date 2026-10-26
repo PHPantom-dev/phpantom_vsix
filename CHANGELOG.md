@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Twig, YAML, and XML files.** Template names, routes, translation keys, services, and PHP classes now complete, navigate, list their references, and rename from inside Twig templates and YAML and XML configuration, not only from PHP. These files keep their own extensions' formatting, highlighting, and outline. Twig needs an extension that provides the `twig` language, and the language server only starts for these files in a project with a `composer.json`. Requires a language server newer than 0.11.1.
+
 ## [0.6.3] - 2026-10-26
 
 ### Fixed

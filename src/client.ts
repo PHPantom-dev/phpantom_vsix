@@ -1,13 +1,24 @@
 import { ChildProcessWithoutNullStreams, spawn } from "child_process";
 import * as vscode from "vscode";
 import {
+    CodeActionRequest,
+    CompletionRequest,
+    DefinitionRequest,
     DidChangeConfigurationNotification,
+    DidChangeTextDocumentNotification,
+    DidCloseTextDocumentNotification,
+    DidOpenTextDocumentNotification,
+    DidSaveTextDocumentNotification,
+    DocumentFilter,
     DocumentSelector,
     DynamicFeature,
     ExecuteCommandRequest,
+    HoverRequest,
     LanguageClient,
     LanguageClientOptions,
     Protocol2CodeConverter,
+    ReferencesRequest,
+    RenameRequest,
     ServerOptions,
     State,
     StaticFeature,
@@ -17,6 +28,56 @@ import { enhancePhpHover } from "./hover";
 import { collectIndexFilters } from "./indexFilters";
 import { augmentPhpDocumentSymbols } from "./phpSymbols";
 import { SharedExecuteCommandFeature } from "./serverCommands";
+
+/**
+ * The template and configuration files PHPantom reads names from (template
+ * names, routes, translation keys, services, PHP classes), by the language
+ * another extension serves them as and the extensions the server reads.
+ * The extensions keep a file mapped to one of these languages that the
+ * server would take for PHP (`phpstan.neon` as YAML, say) from being sent.
+ */
+const RESOURCE_DOCUMENTS = [
+    { language: "twig", extensions: "twig" },
+    { language: "yaml", extensions: "{yaml,yml,yaml.dist,yml.dist}" },
+    { language: "xml", extensions: "{xml,xml.dist,xlf,xliff}" }
+];
+
+const RESOURCE_LANGUAGES = new Set(RESOURCE_DOCUMENTS.map(({ language }) => language));
+
+/**
+ * The requests PHPantom answers in a template or configuration file. Every
+ * other feature is registered for PHP and Blade only, so VS Code never
+ * offers PHPantom as the formatter, highlighter, or outline of a file
+ * another extension owns.
+ */
+const RESOURCE_REQUESTS = new Set<string>([
+    DidOpenTextDocumentNotification.method,
+    DidChangeTextDocumentNotification.method,
+    DidCloseTextDocumentNotification.method,
+    DidSaveTextDocumentNotification.method,
+    CompletionRequest.method,
+    HoverRequest.method,
+    DefinitionRequest.method,
+    ReferencesRequest.method,
+    RenameRequest.method,
+    CodeActionRequest.method
+]);
+
+/**
+ * The template and configuration files under `base` (any on-disk file when
+ * it is undefined) a server is sent.
+ */
+export function resourceDocumentSelector(base: string | undefined): DocumentFilter[] {
+    return RESOURCE_DOCUMENTS.map(({ language, extensions }) => ({
+        scheme: "file",
+        language,
+        pattern: base ? `${base}/**/*.${extensions}` : `**/*.${extensions}`
+    }));
+}
+
+export function isResourceLanguage(languageId: string): boolean {
+    return RESOURCE_LANGUAGES.has(languageId);
+}
 
 export interface StartedClient {
     client: LanguageClient;
@@ -74,16 +135,19 @@ export async function startClient(
     let documentSelector: DocumentSelector;
     if (folder) {
         // Forward slashes so the glob matches on Windows too.
-        const pattern = `${folder.uri.fsPath.replace(/\\/g, "/")}/**/*`;
+        const base = folder.uri.fsPath.replace(/\\/g, "/");
+        const pattern = `${base}/**/*`;
         documentSelector = [
             { scheme: "file", language: "php", pattern },
-            { scheme: "file", language: "blade", pattern }
+            { scheme: "file", language: "blade", pattern },
+            ...resourceDocumentSelector(base)
         ];
     } else if (matchOnDiskFiles) {
         documentSelector = [
             { scheme: "untitled", language: "php" },
             { scheme: "file", language: "php" },
-            { scheme: "file", language: "blade" }
+            { scheme: "file", language: "blade" },
+            ...resourceDocumentSelector(undefined)
         ];
     } else {
         documentSelector = [{ scheme: "untitled", language: "php" }];
@@ -167,6 +231,10 @@ class PhpantomLanguageClient extends LanguageClient {
             return;
         }
 
+        if ("registrationType" in feature && !RESOURCE_REQUESTS.has(feature.registrationType.method)) {
+            withoutResourceDocuments(feature);
+        }
+
         super.registerFeature(feature);
     }
 }
@@ -197,6 +265,25 @@ function withReferenceArguments(lens: vscode.CodeLens, converter: Protocol2CodeC
         locations.map((location) => (location instanceof vscode.Location ? location : converter.asLocation(location)))
     ];
     return lens;
+}
+
+/**
+ * Register `feature` for the client's PHP and Blade documents only.
+ *
+ * A feature registers a provider for every document the client's selector
+ * matches, whatever the server answers there. A formatting provider for
+ * YAML would make VS Code ask which formatter to use, even though PHPantom
+ * formats nothing in it.
+ */
+function withoutResourceDocuments(feature: StaticFeature | DynamicFeature<unknown>): void {
+    const initialize = feature.initialize.bind(feature);
+    feature.initialize = (capabilities, documentSelector) =>
+        initialize(
+            capabilities,
+            documentSelector?.filter(
+                (filter) => typeof filter === "string" || !("language" in filter) || !isResourceLanguage(filter.language ?? "")
+            )
+        );
 }
 
 /**

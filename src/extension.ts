@@ -3,7 +3,14 @@ import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
 import { registerArtisanCommands } from "./artisanCommand";
-import { applyConfiguredTrace, sendIndexFilters, startClient, StartedClient } from "./client";
+import {
+    applyConfiguredTrace,
+    isResourceLanguage,
+    resourceDocumentSelector,
+    sendIndexFilters,
+    startClient,
+    StartedClient
+} from "./client";
 import {
     checkForServerUpdate,
     clearDownloadedServer,
@@ -303,6 +310,11 @@ async function ensureClientForDocument(
     context: vscode.ExtensionContext,
     document: vscode.TextDocument
 ): Promise<void> {
+    if (isResourceLanguage(document.languageId)) {
+        await ensureClientForResourceDocument(context, document);
+        return;
+    }
+
     if (document.languageId !== "php" && document.languageId !== "blade") {
         return;
     }
@@ -342,6 +354,36 @@ async function ensureClientForDocument(
     // outside it, so opening one of those is no reason to start it.
     const root = resolveServerRoot(folder);
     if (!isInsidePath(uri.fsPath, root.uri.fsPath)) {
+        return;
+    }
+
+    await startFolderClient(context, folder, root);
+}
+
+// A Twig template or a YAML or XML file is only worth a server in a PHP
+// project: one whose server root holds a `composer.json`. Anywhere else
+// (a JavaScript project's YAML, a loose file) there is nothing for the
+// server to resolve the names in it against.
+async function ensureClientForResourceDocument(
+    context: vscode.ExtensionContext,
+    document: vscode.TextDocument
+): Promise<void> {
+    const owningFolder = vscode.workspace.getWorkspaceFolder(document.uri);
+    if (document.uri.scheme !== "file" || !owningFolder) {
+        return;
+    }
+
+    const folder = getOuterMostWorkspaceFolder(owningFolder);
+    if (clients.has(folder.uri.toString())) {
+        return;
+    }
+
+    const root = resolveServerRoot(folder);
+    const base = root.uri.fsPath.replace(/\\/g, "/");
+    if (
+        vscode.languages.match(resourceDocumentSelector(base), document) === 0
+        || !fs.existsSync(path.join(root.uri.fsPath, "composer.json"))
+    ) {
         return;
     }
 

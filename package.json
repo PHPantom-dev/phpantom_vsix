@@ -36,7 +36,8 @@
     ],
     "activationEvents": [
         "onLanguage:php",
-        "onLanguage:blade"
+        "onLanguage:blade",
+        "workspaceContains:**/composer.json"
     ],
     "main": "./dist/extension.js",
     "extensionKind": [
