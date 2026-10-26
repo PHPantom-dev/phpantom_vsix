@@ -7,6 +7,7 @@ import {
     ExecuteCommandRequest,
     LanguageClient,
     LanguageClientOptions,
+    Protocol2CodeConverter,
     ServerOptions,
     State,
     StaticFeature,
@@ -108,6 +109,14 @@ export async function startClient(
             async provideDocumentSymbols(document, token, next) {
                 const symbols = await next(document, token);
                 return augmentPhpDocumentSymbols(document, symbols);
+            },
+            async provideCodeLenses(document, token, next) {
+                const lenses = await next(document, token);
+                return lenses?.map((lens) => withReferenceArguments(lens, client.protocol2CodeConverter));
+            },
+            async resolveCodeLens(codeLens, token, next) {
+                const lens = await next(codeLens, token);
+                return lens && withReferenceArguments(lens, client.protocol2CodeConverter);
             }
         }
     };
@@ -160,6 +169,34 @@ class PhpantomLanguageClient extends LanguageClient {
 
         super.registerFeature(feature);
     }
+}
+
+/**
+ * Turn the JSON arguments of a `editor.action.showReferences` lens into the
+ * `Uri`, `Position` and `Location[]` instances the command insists on.
+ *
+ * The server can only send protocol JSON, and VS Code runs this command
+ * straight from the lens without converting it, so clicking an "N
+ * references" or "N implementations" lens would otherwise fail with
+ * "argument does not match one of these constraints".
+ */
+function withReferenceArguments(lens: vscode.CodeLens, converter: Protocol2CodeConverter): vscode.CodeLens {
+    const command = lens.command;
+    if (command?.command !== "editor.action.showReferences" || command.arguments?.length !== 3) {
+        return lens;
+    }
+
+    const [uri, position, locations] = command.arguments;
+    if (typeof uri !== "string" || !Array.isArray(locations)) {
+        return lens;
+    }
+
+    command.arguments = [
+        converter.asUri(uri),
+        position instanceof vscode.Position ? position : converter.asPosition(position),
+        locations.map((location) => (location instanceof vscode.Location ? location : converter.asLocation(location)))
+    ];
+    return lens;
 }
 
 /**
