@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-10-26
+
 ### Fixed
 
 - **References and implementations lenses open again.** Clicking an "N references" or "N implementations" lens above a class or method now opens the references peek view instead of failing with "argument does not match one of these constraints".
