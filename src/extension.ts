@@ -3,13 +3,14 @@ import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
 import { registerArtisanCommands } from "./artisanCommand";
-import { applyConfiguredTrace, sendIndexFilters, startClient, StartedClient } from "./client";
+import { applyConfiguredTrace, refreshInlayHints, sendIndexFilters, startClient, StartedClient } from "./client";
 import {
     checkForServerUpdate,
     clearDownloadedServer,
     resolveServerBinary
 } from "./downloader";
 import { registerHoverCommands } from "./hover";
+import { registerInlayHintCommands } from "./inlayHints";
 import { registerLaravelMakeCommands } from "./laravelMake";
 import { LogViewer } from "./logViewer";
 import { registerModelAnnotationCommands } from "./modelAnnotations";
@@ -49,6 +50,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
     registerHoverCommands(context);
 
+    registerInlayHintCommands(context);
+
     context.subscriptions.push(new LogViewer(context));
 
     registerArtisanCommands(context, outputChannel);
@@ -87,6 +90,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             if (event.affectsConfiguration("phpantom.trace.server")) {
                 for (const started of allStartedClients()) {
                     applyConfiguredTrace(started.client);
+                }
+            }
+
+            if (event.affectsConfiguration("phpantom.inlayHints")) {
+                for (const started of allStartedClients()) {
+                    refreshInlayHints(started);
                 }
             }
 

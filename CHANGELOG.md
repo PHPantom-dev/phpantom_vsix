@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **PHPantom's inlay hints can be turned off.** `phpantom.inlayHints.parameterNames` controls hints like `needle:` before call arguments, and `phpantom.inlayHints.closureTypes` controls inferred types like `: Response` on closures. "PHPantom: Toggle Inlay Hints" flips both at once. Changes show in open editors right away. Unlike `editor.inlayHints.enabled`, these settings leave other extensions' hints alone.
+
 ## [0.6.2] - 2026-10-18
 
 ### Added

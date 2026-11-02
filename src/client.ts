@@ -5,6 +5,7 @@ import {
     DocumentSelector,
     DynamicFeature,
     ExecuteCommandRequest,
+    InlayHintRequest,
     LanguageClient,
     LanguageClientOptions,
     ServerOptions,
@@ -14,6 +15,7 @@ import {
 } from "vscode-languageclient/node";
 import { enhancePhpHover } from "./hover";
 import { collectIndexFilters } from "./indexFilters";
+import { filterInlayHints } from "./inlayHints";
 import { augmentPhpDocumentSymbols } from "./phpSymbols";
 import { SharedExecuteCommandFeature } from "./serverCommands";
 
@@ -108,6 +110,10 @@ export async function startClient(
             async provideDocumentSymbols(document, token, next) {
                 const symbols = await next(document, token);
                 return augmentPhpDocumentSymbols(document, symbols);
+            },
+            async provideInlayHints(document, viewPort, token, next) {
+                const hints = await next(document, viewPort, token);
+                return filterInlayHints(hints);
             }
         }
     };
@@ -179,6 +185,17 @@ export async function sendIndexFilters(started: StartedClient): Promise<void> {
     await started.client.sendNotification(DidChangeConfigurationNotification.type, {
         settings: collectIndexFilters(started.folder)
     });
+}
+
+/**
+ * Ask VS Code to re-request a running server's inlay hints, so a change to
+ * the hint filter shows at once instead of on the next edit.
+ */
+export function refreshInlayHints(started: StartedClient): void {
+    const feature = started.client.getFeature(InlayHintRequest.method);
+    for (const editor of vscode.window.visibleTextEditors) {
+        feature.getProvider(editor.document)?.onDidChangeInlayHints.fire();
+    }
 }
 
 export function applyConfiguredTrace(client: LanguageClient): void {
