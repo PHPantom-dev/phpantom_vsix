@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added
 
 - **Twig, YAML, and XML files.** Template names, routes, translation keys, services, and PHP classes now complete, navigate, list their references, and rename from inside Twig templates and YAML and XML configuration, not only from PHP. These files keep their own extensions' formatting, highlighting, and outline. Twig needs an extension that provides the `twig` language, and the language server only starts for these files in a project with a `composer.json`. Requires a language server newer than 0.11.1.
+- **PHPantom's inlay hints can be turned off.** `phpantom.inlayHints.parameterNames` controls hints like `needle:` before call arguments (and the `&` marker on by-reference arguments), and `phpantom.inlayHints.closureTypes` controls inferred types like `: Response` on closures. "PHPantom: Toggle Inlay Hints" flips both at once. Changes show in open editors right away. Unlike `editor.inlayHints.enabled`, these settings leave other extensions' hints alone. A hint kind switched off in the project's `.phpantom.toml` stays off whatever these settings say. Requires a language server newer than 0.11.1.
 
 ## [0.6.3] - 2026-10-26
 

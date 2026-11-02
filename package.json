@@ -99,6 +99,10 @@
                 "title": "PHPantom: Show Logs"
             },
             {
+                "command": "phpantom.toggleInlayHints",
+                "title": "PHPantom: Toggle Inlay Hints"
+            },
+            {
                 "command": "phpantom.runArtisanCommand",
                 "title": "PHPantom: Run Artisan Command"
             },
@@ -185,6 +189,16 @@
                     "default": "",
                     "scope": "resource",
                     "description": "Absolute path to the PHP executable used to run artisan commands. When empty, PHPantom uses php on your PATH. The language server itself never runs PHP; this is only for editor tooling like the Artisan command runner."
+                },
+                "phpantom.inlayHints.parameterNames": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Show parameter name inlay hints at call sites, for example needle: before an argument, and the & marker on arguments passed by reference. A project's .phpantom.toml can still switch them off, in which case true here does not bring them back. Requires a language server newer than 0.11.1."
+                },
+                "phpantom.inlayHints.closureTypes": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Show inferred type inlay hints on closures and arrow functions that do not declare them, for example : Response after the parameter list. A project's .phpantom.toml can still switch them off, in which case true here does not bring them back. Requires a language server newer than 0.11.1."
                 },
                 "phpantom.trace.server": {
                     "type": "string",

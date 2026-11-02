@@ -26,6 +26,7 @@ import {
 } from "vscode-languageclient/node";
 import { enhancePhpHover } from "./hover";
 import { collectIndexFilters } from "./indexFilters";
+import { collectInlayHintOptions } from "./inlayHints";
 import { augmentPhpDocumentSymbols } from "./phpSymbols";
 import { SharedExecuteCommandFeature } from "./serverCommands";
 
@@ -164,7 +165,12 @@ export async function startClient(
         // Hand the server this folder's `files.exclude`/`files.associations`
         // before it indexes anything, so the very first scan already skips
         // what the editor hides instead of indexing it and dropping it later.
-        initializationOptions: collectIndexFilters(folder),
+        // The inlay hint toggles ride along for the same reason: the first
+        // hint request should not race the initial configuration push.
+        initializationOptions: {
+            ...collectIndexFilters(folder),
+            ...collectInlayHintOptions(folder)
+        },
         middleware: {
             async provideHover(document, position, token, next) {
                 const hover = await next(document, position, token);

@@ -49,6 +49,8 @@ To use a custom binary, set `phpantom.serverPath` to the path of your `phpantom_
 | `phpantom.autoDownload` | `true` | Automatically download the server if not found. |
 | `phpantom.autoUpdate` | `true` | Check for newer releases periodically. |
 | `phpantom.updateCheckIntervalHours` | `24` | How often to check for updates (1-168 hours). |
+| `phpantom.inlayHints.parameterNames` | `true` | Show parameter name inlay hints at call sites, such as `needle:` before an argument, and the `&` marker on arguments passed by reference. A project's `.phpantom.toml` can still switch them off. Requires a language server newer than 0.11.1. |
+| `phpantom.inlayHints.closureTypes` | `true` | Show inferred type inlay hints on closures and arrow functions that do not declare them, such as `: Response` after the parameter list. A project's `.phpantom.toml` can still switch them off. Requires a language server newer than 0.11.1. |
 | `phpantom.trace.server` | `"off"` | Trace communication with the language server. |
 | `phpantom.rootDir` | `""` | Subdirectory of the workspace folder that holds the PHP project, such as `api`. The language server treats it as the project root, and PHP files outside it get no language features. Empty uses the workspace folder. |
 
@@ -60,6 +62,7 @@ To use a custom binary, set `phpantom.serverPath` to the path of your `phpantom_
 - **PHPantom: Check for Server Update.** Check for a newer server binary.
 - **PHPantom: Clear Downloaded Language Server.** Remove cached server binaries.
 - **PHPantom: Show Logs.** Open the log viewer for `storage/logs/*.log`.
+- **PHPantom: Toggle Inlay Hints.** Show or hide all PHPantom inlay hints at once. If only some are showing, it hides them all. Each `phpantom.inlayHints.*` setting changes in your workspace settings when the workspace sets it, and in your user settings otherwise.
 - **PHPantom: Run Artisan Command.** Pick an artisan command, fill in its arguments and options, and run it in the terminal.
 - **PHPantom: New Laravel Class...** Pick a class kind (model, controller, request, migration, job, and more), type a name, toggle the common `make:*` flags, and PHPantom generates it via the matching `artisan make:*` command and opens the file. Also available by right-clicking a folder in the explorer, where the namespace is pre-filled from the folder. Falls back to a bundled template for the common kinds when artisan cannot boot.
 - **PHPantom: Show Route List.** Open the route list panel with filtering and click-through to controller methods.

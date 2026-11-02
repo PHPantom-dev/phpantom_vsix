@@ -17,6 +17,7 @@ import {
     resolveServerBinary
 } from "./downloader";
 import { registerHoverCommands } from "./hover";
+import { registerInlayHintCommands } from "./inlayHints";
 import { registerLaravelMakeCommands } from "./laravelMake";
 import { LogViewer } from "./logViewer";
 import { registerModelAnnotationCommands } from "./modelAnnotations";
@@ -55,6 +56,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     registerPhpLanguageConfiguration(context);
 
     registerHoverCommands(context);
+
+    registerInlayHintCommands(context);
 
     context.subscriptions.push(new LogViewer(context));
 
