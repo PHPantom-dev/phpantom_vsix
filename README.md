@@ -1,95 +1,85 @@
 # PHPantom
 
-PHP language support for Visual Studio Code powered by [PHPantom](https://github.com/PHPantom-dev/phpantom_lsp), a fast language server with deep type intelligence, generics, and framework-awarness.
-
-## Features
-
-- **Code completion.** Type-aware suggestions for symbols, keywords, and members with automatic use declaration insertion.
-- **Signature help.** Parameter hints for constructors, methods, and functions.
-- **Navigation.** Go to definition, type definition, implementation, find all references, and rename.
-- **Diagnostics.** Undefined symbols, type errors, argument count mismatches, deprecated usage, unused imports, and implementation errors.
-- **Hover.** Type information and PHPDoc documentation.
-- **Code actions.** Extract variable/method/constant, inline variable, generate constructor/getters/setters, implement interface methods, auto-import, and PHPDoc generation.
-- **Call hierarchy and type hierarchy.**
-- **Semantic tokens, inlay hints, and code lens.**
-- **Document highlight and workspace symbol search.**
-- **Formatting.** PSR-12 compatible, with optional Laravel Pint integration.
-- **Code folding and smart selection.**
-- **Document links** for include/require paths.
-- **Deep type intelligence.** Generics (`@template`), PHPStan/Psalm annotations, and framework-aware analysis including Laravel Eloquent.
-- **Blade templates.** Completion, diagnostics, and navigation in `.blade.php` files, with VS Code's native HTML completion and Emmet still active in the markup.
-- **Twig, YAML, and XML files.** The names PHPantom reads in templates and configuration (template names, routes, translation keys, services, PHP classes) complete, navigate, list their references, and rename from the file itself, alongside the Twig, YAML, and XML extensions you already use. Their formatting, highlighting, and outline stay with those extensions. Twig needs an extension that provides the `twig` language.
-- **Log viewer.** A panel that tails `storage/logs/*.log` with log-level highlighting and click-through on stack-trace frames. A status bar item shows a subtle dot when a log changes since you last looked.
-- **Artisan command runner.** Browse your application's artisan commands in a quick-pick, fill in their arguments and options, and run them in the integrated terminal.
-- **Laravel file generation.** Create a model, controller, request, migration, and more via `artisan make:*` from the command palette or by right-clicking a folder in the explorer, which pre-fills the namespace. Toggle the common `make:*` flags in the picker, and PHPantom opens the generated file. When artisan cannot boot, the common kinds fall back to a bundled template written straight to disk.
-- **Route list.** A panel listing your application's routes (method, URI, name, action) with a filter box and click-through from an action to the controller method. It refreshes as your route files change.
-- **Model annotations.** Generate `@property` docblocks on your Eloquent models from the live database schema, honouring `$casts`, so column access is fully typed. A one-time boot you trigger; the language server itself stays purely static.
-- **Your file settings shape the index.** `files.exclude` and `files.associations` are forwarded to the language server per workspace folder, so hidden folders stay out of the index and a pattern you map to `php` is treated as PHP source, with no `.phpantom.toml` needed.
+Fast PHP language support powered by [PHPantom](https://github.com/PHPantom-dev/phpantom_lsp), a language server with deep type intelligence, generics, and framework awareness. Works in VS Code, Cursor, and other VS Code-based editors, available on the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=phpantom.phpantom) and [Open VSX](https://open-vsx.org/extension/phpantom/phpantom).
 
 ![PHPantom showing hover and completion on a Laravel query](https://raw.githubusercontent.com/PHPantom-dev/phpantom_vsix/master/assets/hover-compleation.png)
 
-## Quick Start
+## Getting Started
 
-1. Disable the built-in VS Code PHP Language Features.
-   - Go to `Extensions`.
-   - Search for `@builtin php`.
-   - Disable `PHP Language Features`. Leave `PHP Language Basics` enabled for syntax highlighting.
-2. Disable other PHP language servers (Intelephense, Phpactor, PHP Tools) to avoid duplicate content.
+1. Disable the editor's built-in PHP language features: open Extensions, search for `@builtin php`, and disable **PHP Language Features**. Leave **PHP Language Basics** enabled for syntax highlighting.
+2. Disable other PHP language servers (Intelephense, Phpactor, PHP Tools) to avoid duplicate results.
 3. Open a PHP project. PHPantom downloads and starts the language server automatically.
 
-To use a custom binary, set `phpantom.serverPath` to the path of your `phpantom_lsp` binary. You can build from source with `cargo install phpantom_lsp` or download a release from [GitHub](https://github.com/PHPantom-dev/phpantom_lsp/releases).
+## Features
+
+**Language intelligence.** Type-aware completion with automatic imports, signature help, hover, go to definition/implementation, find references, rename, call and type hierarchy, inlay hints, code lens, semantic highlighting, and PSR-12 formatting (with optional Laravel Pint). Understands generics (`@template`) and PHPStan/Psalm annotations, and is framework-aware, including Laravel Eloquent.
+
+**Diagnostics and code actions.** Undefined symbols, type errors, argument mismatches, deprecated usage, and unused imports. Refactorings such as extract/inline variable, extract method, generate constructor/getters/setters, implement interface methods, and PHPDoc generation.
+
+**Templates and config files.** Full support in Blade templates, with the editor's HTML completion and Emmet still active in the markup. In Twig, YAML, and XML files, template names, routes, translation keys, services, and class names complete, navigate, and rename alongside the extensions you already use for those languages (Twig needs an extension that provides the `twig` language).
+
+**Laravel tooling.**
+
+- **Artisan command runner.** Pick a command, fill in its arguments, and run it in the terminal.
+- **Class generation.** Create models, controllers, migrations, and more via `artisan make:*`, from the command palette or by right-clicking a folder.
+- **Route list.** A filterable panel of your routes with click-through to the controller method.
+- **Model annotations.** Generate `@property` docblocks on Eloquent models from your database schema.
+- **Log viewer.** Tails `storage/logs/*.log` with highlighting and clickable stack traces.
+
+These tools run your application only when you invoke them. The language server itself never runs your code; its analysis is purely static.
 
 ## Settings
 
+The most common settings are below. Search for `phpantom` in the Settings UI for full descriptions.
+
 | Setting | Default | Description |
 | --- | --- | --- |
+| `phpantom.rootDir` | `""` | Subdirectory that holds the PHP project (such as `api`), when it is not the workspace folder itself. |
+| `phpantom.phpPath` | `""` | PHP executable for artisan commands. Empty uses `php` on `PATH`. |
+| `phpantom.inlayHints.parameterNames` | `true` | Parameter name hints at call sites. |
+| `phpantom.inlayHints.closureTypes` | `true` | Inferred return type hints on closures and arrow functions. |
 | `phpantom.serverPath` | `""` | Path to a custom `phpantom_lsp` binary. |
-| `phpantom.phpPath` | `""` | PHP executable used to run artisan commands. Empty uses `php` on `PATH`. |
-| `phpantom.releaseTag` | `"latest"` | GitHub release tag to download. |
-| `phpantom.autoDownload` | `true` | Automatically download the server if not found. |
-| `phpantom.autoUpdate` | `true` | Check for newer releases periodically. |
+| `phpantom.autoDownload` | `true` | Download the server automatically if it is not found. |
+| `phpantom.autoUpdate` | `true` | Check for newer server releases periodically. |
 | `phpantom.updateCheckIntervalHours` | `24` | How often to check for updates (1-168 hours). |
-| `phpantom.inlayHints.parameterNames` | `true` | Show parameter name inlay hints at call sites, such as `needle:` before an argument, and the `&` marker on arguments passed by reference. A project's `.phpantom.toml` can still switch them off. Requires a language server newer than 0.11.1. |
-| `phpantom.inlayHints.closureTypes` | `true` | Show inferred type inlay hints on closures and arrow functions that do not declare them, such as `: Response` after the parameter list. A project's `.phpantom.toml` can still switch them off. Requires a language server newer than 0.11.1. |
+| `phpantom.releaseTag` | `"latest"` | Server release to download. |
 | `phpantom.trace.server` | `"off"` | Trace communication with the language server. |
-| `phpantom.rootDir` | `""` | Subdirectory of the workspace folder that holds the PHP project, such as `api`. The language server treats it as the project root, and PHP files outside it get no language features. Empty uses the workspace folder. |
+
+Your `files.exclude` and `files.associations` settings are also passed to the language server, so excluded folders stay out of the index and patterns mapped to `php` are analysed as PHP.
+
+Per-project analysis options live in a `.phpantom.toml` file. See the [language server documentation](https://github.com/PHPantom-dev/phpantom_lsp) for details.
 
 ## Commands
 
-- **PHPantom: Restart Language Server.** Restart the language server.
-- **PHPantom: Show Output.** Open the PHPantom output channel.
-- **PHPantom: Show Server Version.** Display the running server version.
-- **PHPantom: Check for Server Update.** Check for a newer server binary.
-- **PHPantom: Clear Downloaded Language Server.** Remove cached server binaries.
-- **PHPantom: Show Logs.** Open the log viewer for `storage/logs/*.log`.
-- **PHPantom: Toggle Inlay Hints.** Show or hide all PHPantom inlay hints at once. If only some are showing, it hides them all. Each `phpantom.inlayHints.*` setting changes in your workspace settings when the workspace sets it, and in your user settings otherwise.
-- **PHPantom: Run Artisan Command.** Pick an artisan command, fill in its arguments and options, and run it in the terminal.
-- **PHPantom: New Laravel Class...** Pick a class kind (model, controller, request, migration, job, and more), type a name, toggle the common `make:*` flags, and PHPantom generates it via the matching `artisan make:*` command and opens the file. Also available by right-clicking a folder in the explorer, where the namespace is pre-filled from the folder. Falls back to a bundled template for the common kinds when artisan cannot boot.
-- **PHPantom: Show Route List.** Open the route list panel with filtering and click-through to controller methods.
-- **PHPantom: Generate Model Annotations.** Boot the app once to read your Eloquent models' column types from the database and write them as `@property` docblocks.
-- **PHPantom: Regenerate Model Annotations.** Refresh existing model annotations after migrations, without prompting.
+All commands are in the command palette under **PHPantom:**.
 
-## How It Works
+| Command | Description |
+| --- | --- |
+| Restart Language Server | Restart the server, applying any downloaded update. |
+| Show Output | Open the PHPantom output channel. |
+| Show Server Version | Show the running server version. |
+| Check for Server Update | Check for a newer server release. |
+| Clear Downloaded Language Server | Remove cached server binaries. |
+| Toggle Inlay Hints | Show or hide all PHPantom inlay hints at once. |
+| Show Logs | Open the log viewer. |
+| Run Artisan Command | Pick and run an artisan command. |
+| New Laravel Class... | Generate a class via `artisan make:*`. |
+| Show Route List | Open the route list panel. |
+| Generate Model Annotations | Write `@property` docblocks from the database schema. |
+| Regenerate Model Annotations | Refresh existing annotations without prompting. |
 
-On activation the extension locates a server binary in this order:
+## Language Server Binary
 
-1. `phpantom.serverPath` setting
-2. `phpantom_lsp` on `PATH`
-3. A previously cached binary
-4. Download from GitHub Releases (when `phpantom.autoDownload` is enabled)
+The extension looks for a server binary in this order: the `phpantom.serverPath` setting, `phpantom_lsp` on `PATH`, a previously downloaded binary, and finally a fresh download from [GitHub Releases](https://github.com/PHPantom-dev/phpantom_lsp/releases). Updates are downloaded in the background and take effect the next time the server restarts.
 
-When `phpantom.releaseTag` is `"latest"`, the extension checks for updates on startup and periodically while active. A status bar item shows the server state.
+If the download fails or your platform has no prebuilt binary, check the **PHPantom: Show Output** channel for details, then download or build one yourself (`cargo install phpantom_lsp`) and set `phpantom.serverPath`.
 
-## Troubleshooting
+## Learn More
 
-If the download fails, open the PHPantom output channel for details. You can always download a binary manually and set `phpantom.serverPath`.
-
-If your platform is unsupported, build from source and point `phpantom.serverPath` at the result.
+- [PHPantom language server](https://github.com/PHPantom-dev/phpantom_lsp): documentation and `.phpantom.toml` configuration
+- [Server changelog](https://github.com/PHPantom-dev/phpantom_lsp/blob/main/docs/CHANGELOG.md): improvements to type intelligence, diagnostics, and completion
+- [Report an extension issue](https://github.com/PHPantom-dev/phpantom_vsix/issues)
 
 ## License
 
 [MIT](LICENSE)
-
----
-
-See the [PHPantom language server changelog](https://github.com/PHPantom-dev/phpantom_lsp/blob/main/docs/CHANGELOG.md) for improvements to type intelligence, diagnostics, and completions.
